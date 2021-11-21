@@ -1,0 +1,75 @@
+{
+  "name": "@mikixing/crk",
+  "version": "0.0.1",
+  "description": "canvas rendering kit",
+  "main": "dist/crk.umd.js",
+  "module": "dist/crk.esm.js",
+  "types": "types/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "types",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "dev": "npm run clean && rollup -w -c rollup.config.js",
+    "build": "npm run clean && rollup --environment=NODE_ENV:production -c rollup.config.js",
+    "lint": "eslint --ext .js,.ts src",
+    "lint:fix": "eslint --fix --ext .js,.ts src",
+    "test": "jest",
+    "test:cover": "jest --coverage",
+    "dts": "rm -rf types && tsc src/*.ts --declaration --emitDeclarationOnly --target ES5 --outDir types",
+    "pb": "npm publish --registry=http://registry.m.jd.com --scope=@o2team",
+    "alpha": "yarn release -- --prerelease alpha",
+    "release": "standard-version"
+  },
+  "keywords": [
+    "canvas",
+    "animation",
+    "html5"
+  ],
+  "author": "mikixing",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.11.6",
+    "@babel/preset-env": "^7.11.0",
+    "@commitlint/cli": "^11.0.0",
+    "@commitlint/config-conventional": "^11.0.0",
+    "@rollup/plugin-alias": "^3.1.1",
+    "@rollup/plugin-commonjs": "^13.0.0",
+    "@rollup/plugin-json": "^4.1.0",
+    "@rollup/plugin-node-resolve": "^8.1.0",
+    "@rollup/plugin-typescript": "^5.0.1",
+    "@types/jest": "^25.2.1",
+    "@types/node": "12",
+    "@typescript-eslint/eslint-plugin": "3",
+    "@typescript-eslint/parser": "^4.4.0",
+    "babel-jest": "^26.3.0",
+    "eslint": "7",
+    "eslint-config-prettier": "^6.12.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "husky": "^4.3.6",
+    "jest": "26",
+    "prettier": "^2.0.2",
+    "rollup": "^2.23.0",
+    "rollup-plugin-filesize": "^9.0.1",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "rollup-plugin-sourcemaps": "^0.6.2",
+    "rollup-plugin-uglify": "^6.0.4",
+    "ts-jest": "^26.4.1",
+    "tslib": "^2.0.0",
+    "typescript": "^4.0.3",
+    "uglify-js": "^3.8.1"
+  },
+  "husky": {
+    "hooks": {
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  }
+}

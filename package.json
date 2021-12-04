@@ -1,6 +1,6 @@
 {
   "name": "@mikixing/crk",
-  "version": "0.0.1",
+  "version": "0.0.2-test.3",
   "description": "canvas rendering kit",
   "main": "dist/crk.umd.js",
   "module": "dist/crk.esm.js",
@@ -20,7 +20,7 @@
     "test": "jest",
     "test:cover": "jest --coverage",
     "dts": "rm -rf types && tsc src/*.ts --declaration --emitDeclarationOnly --target ES5 --outDir types",
-    "pb": "npm publish --registry=http://registry.m.jd.com --scope=@o2team",
+    "pb": "npm run dts && npm publish --access public",
     "alpha": "yarn release -- --prerelease alpha",
     "release": "standard-version"
   },
@@ -50,7 +50,7 @@
     "eslint-config-prettier": "^6.12.0",
     "eslint-plugin-prettier": "^3.1.4",
     "husky": "^4.3.6",
-    "jest": "26",
+    "jest": "26.6.0",
     "prettier": "^2.0.2",
     "rollup": "^2.23.0",
     "rollup-plugin-filesize": "^9.0.1",

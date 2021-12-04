@@ -43,6 +43,7 @@ export default class Group extends Element {
   public doUpdate(ctx: CanvasRenderingContext2D) {
     ctx.save()
     this.setTransform(ctx)
+    this.setAlpha(ctx)
     this.children.forEach(child => {
       child.doUpdate(ctx)
     })

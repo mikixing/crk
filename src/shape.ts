@@ -21,8 +21,8 @@ export default class Shape extends Element {
 
     ctx.save()
     this.setTransform(ctx)
+    this.setAlpha(ctx)
     ctx.beginPath()
-    ctx.globalAlpha = this.alpha
 
     for (let k = 0; k < actions.length; k++) {
       let action = actions[k]

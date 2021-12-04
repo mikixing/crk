@@ -16,3 +16,4 @@ test.*
 .vscode
 types
 temp
+*.tgz

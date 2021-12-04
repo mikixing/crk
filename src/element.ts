@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 
-export interface IAccumulator {
+export interface Transform {
   x: number
   y: number
   regX: number
@@ -8,11 +8,12 @@ export interface IAccumulator {
   scaleX: number
   scaleY: number
   rotation: number
-  alpha: number
-  visible: boolean
 }
 
-export default abstract class Element extends EventEmitter {
+export default abstract class Element
+  extends EventEmitter
+  implements Transform
+{
   public x = 0
   public y = 0
   public regX = 0
@@ -27,7 +28,17 @@ export default abstract class Element extends EventEmitter {
   protected abstract doUpdate(ctx: CanvasRenderingContext2D): void
 
   setTransform(ctx: CanvasRenderingContext2D) {
-    const { x, y, scaleX, scaleY, rotation, transformMatrix, regX, regY } = this
+    const {
+      x = 0,
+      y = 0,
+      scaleX = 1,
+      scaleY = 1,
+      rotation = 0,
+      transformMatrix,
+      regX = 0,
+      regY = 0,
+      alpha = 1,
+    } = this
 
     if (transformMatrix) {
       const { a, b, c, d, e, f } = transformMatrix
@@ -38,6 +49,9 @@ export default abstract class Element extends EventEmitter {
       ctx.rotate((rotation * Math.PI) / 180)
       ctx.translate(-regX, -regY)
     }
+  }
+  setAlpha(ctx: CanvasRenderingContext2D) {
+    ctx.globalAlpha *= this.alpha
   }
   scale(x: number, y: number) {
     this.scaleX = x

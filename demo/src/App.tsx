@@ -4,6 +4,9 @@ import Chord from './pages/Chord'
 import RoundCircle from './pages/RoundCircle'
 import RadialBar from './pages/RadialBar'
 import RadialGrid from './pages/RadialGrid'
+import Api from './pages/Api'
+import DetectCollision from './pages/DetectCollision'
+import EventTest from './pages/EventTest'
 
 import './App.css'
 
@@ -18,6 +21,9 @@ export default function App() {
         <Route path="round-circle" element={<RoundCircle />}></Route>
         <Route path="radial-bar" element={<RadialBar />}></Route>
         <Route path="radial-grid" element={<RadialGrid />}></Route>
+        <Route path="save" element={<Api />}></Route>
+        <Route path="detect-collision" element={<DetectCollision />}></Route>
+        <Route path="event-test" element={<EventTest />}></Route>
       </Routes>
     </HashRouter>
   )

@@ -19,9 +19,10 @@ export default class Shape extends Element {
     let { actions } = g
     if (!visible) return
 
+    let statusCount = 0
+
     ctx.save()
     this.setTransform(ctx)
-    this.setAlpha(ctx)
     ctx.beginPath()
 
     for (let k = 0; k < actions.length; k++) {
@@ -79,6 +80,18 @@ export default class Shape extends Element {
 
           break
         }
+        case ActionTypes.save: {
+          statusCount++
+          ctx.save()
+          break
+        }
+        case ActionTypes.restore: {
+          statusCount--
+          this.assertStatus(statusCount < 0)
+
+          ctx.restore()
+          break
+        }
 
         default: {
           const method = ActionKeyMap[type] as NativeMethodTypes
@@ -89,6 +102,13 @@ export default class Shape extends Element {
       }
     }
 
+    this.assertStatus(statusCount !== 0)
+
     ctx.restore()
+  }
+
+  private assertStatus(flag: boolean) {
+    if (flag)
+      throw new Error(`make sure 'save()' and 'restore()' appear in pairs!`)
   }
 }

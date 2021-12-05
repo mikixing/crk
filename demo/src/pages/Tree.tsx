@@ -5,6 +5,7 @@ import { initCanvas, setRoundRect } from '../util'
 interface Node {
   name: string
   children?: Node[]
+  mouseover?: (ev?: any) => void
 }
 
 const data: Node = {
@@ -15,7 +16,14 @@ const data: Node = {
       children: [
         { name: 'ccc', children: [] },
         { name: 'ddd', children: [] },
-        { name: 'eee', children: [] },
+        {
+          name: 'eee',
+          children: [
+            { name: 'ccc', children: [] },
+            { name: 'ddd', children: [] },
+            { name: 'eee', children: [] },
+          ],
+        },
       ],
     },
 
@@ -49,13 +57,15 @@ export default function Tree() {
     stage.y = 50
 
     const { el } = render(data)
+
     stage.addChild(el)
+    stage.enableMouseOver(10)
 
     update()
 
     function update() {
       stage.update()
-      // requestAnimationFrame(update)
+      requestAnimationFrame(update)
     }
 
     function getTextMarics(text: string) {

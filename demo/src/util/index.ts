@@ -136,4 +136,9 @@ export class Vector {
   }
 }
 
+export const rand = (min: number, max: number) => {
+  return Math.random() * (max - min) + min
+}
+
 export { default as getRoundCircle } from './getRoundCircle'
+export { default as loadImage } from './loadImage'

@@ -143,11 +143,19 @@ export default class Graphics {
     return this.addAction(ActionTypes.setTextStyle, args)
   }
 
-  strokeText(text: string | number, x: number, y: number, maxWidth?: number) {
+  strokeText(text: string, x: number, y: number, maxWidth?: number) {
     return this.addAction(ActionTypes.strokeText, [text, x, y, maxWidth])
   }
 
-  fillText(text: string | number, x = 0, y = 0, maxWidth?: number) {
+  fillText(text: string, x = 0, y = 0, maxWidth?: number) {
     return this.addAction(ActionTypes.fillText, [text, x, y, maxWidth])
+  }
+
+  // 状态保存,重置
+  save() {
+    return this.addAction(ActionTypes.save)
+  }
+  restore() {
+    return this.addAction(ActionTypes.restore)
   }
 }

@@ -1,6 +1,6 @@
 import resolve from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
-import typescript from '@rollup/plugin-typescript'
+import typescript from 'rollup-plugin-typescript2'
 import json from '@rollup/plugin-json'
 import alias from '@rollup/plugin-alias'
 import { uglify } from 'rollup-plugin-uglify'
@@ -36,7 +36,7 @@ export default [
     },
     plugins: [
       resolve({
-        extensions: ['.js', '.jsx', '.ts', '.tsx', '.json', '.glsl'],
+        extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
         browser: true,
         preferBuiltins: true,
       }),

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { Stage, Group, Shape, deg2rad } from '@mikixing/crk'
-import { initCanvas, getRoundCircle } from '../util'
+import { initCanvas, getRoundCircle, Vector } from '../util'
 
 const data = {
   title: {
@@ -96,11 +96,11 @@ export default function Diagram() {
     stage.update()
 
     function drawTitle() {
+      const shape = new Shape()
+      const g = shape.graphics
       ctx.save()
       ctx.font = title.font
       const textSizeObj = ctx?.measureText(title.text)
-      const shape = new Shape()
-      const g = shape.graphics
       g.setTextStyle({ font: title.font })
         .fillText(title.text, 0, 0)
         .setFillStyle(title.color)
@@ -249,48 +249,23 @@ export default function Diagram() {
         const { font, fontColor } = style
         ctx?.save()
         ctx.font = font
-        const textSizeObj = ctx?.measureText(labels[i])
+        const text = labels[i] ?? '未命名'
+        const textSizeObj = ctx?.measureText(text)
         ctx?.restore()
         let { width: labelWidth, fontBoundingBoxAscent: labelHeight } =
           textSizeObj
-        // 文字围绕圆弧的方位
-        // 水平,上 -> 1; 水平,下 -> 2; 垂直,右 -> 3; 垂直,左 -> 4
-        let direction
-        if (Math.abs(ex - sx) >= Math.abs(ey - sy) && cy <= 0) {
-          direction = 1
-        } else if (Math.abs(ex - sx) >= Math.abs(ey - sy) && cy > 0) {
-          direction = 2
-        } else if (Math.abs(ex - sx) < Math.abs(ey - sy) && cx >= 0) {
-          direction = 3
-        } else {
-          direction = 4
-        }
 
-        g.beginPath().setFillStyle(fontColor).setTextStyle({ font })
-        const fontGap = 10
+        const v = new Vector(cx, cy)
+        const vv = v
+          .normalize()
+          .scale(labelWidth / 2)
+          .add(v)
 
-        switch (direction) {
-          case 1:
-            g.fillText(
-              labels[i] ?? '未命名',
-              cx - labelWidth / 2,
-              cy - labelHeight / 2
-            )
-            break
-          case 2:
-            g.fillText(
-              labels[i] ?? '未命名',
-              cx - labelWidth / 2,
-              cy + labelHeight
-            )
-            break
-          case 3:
-            g.fillText(labels[i] ?? '未命名', cx + fontGap, cy)
-            break
-          case 4:
-            g.fillText(labels[i] ?? '未命名', cx - (labelWidth + fontGap), cy)
-            break
-        }
+        g.beginPath()
+          .setFillStyle(fontColor)
+          .setTextStyle({ font, baseline: 'middle', textAlign: 'center' })
+
+        g.fillText(text, vv.x, vv.y).setFillStyle('#666')
 
         g.fill()
         return endAngle + gap

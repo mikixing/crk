@@ -17,6 +17,8 @@ export enum ActionTypes {
   fillText,
   drawImage,
   rect,
+  save,
+  restore,
 }
 
 export type ActionKeys = keyof typeof ActionTypes

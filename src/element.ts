@@ -42,6 +42,7 @@ export default abstract class Element
   public visible = true
   public transformMatrix: any
   public parent: Element | null
+  public ignoreEvent = false
 
   // private boundingBox: Rectangle
 
@@ -98,11 +99,39 @@ export default abstract class Element
   // }
 
   getMatrix() {
-    return new Matrix()
-      .translate(this.x, this.y)
-      .skew(this.skewX, this.skewY)
-      .rotate(this.rotation)
-      .scale(this.scaleX ?? this.scale, this.scaleY ?? this.scale)
-      .translate(-this.regX, -this.regY)
+    return (
+      this.transformMatrix ||
+      new Matrix()
+        .translate(this.x, this.y)
+        .skew(this.skewX, this.skewY)
+        .rotate(this.rotation)
+        .scale(this.scaleX ?? this.scale, this.scaleY ?? this.scale)
+        .translate(-this.regX, -this.regY)
+    )
+  }
+
+  public getWorldMatrix() {
+    let mat = new Matrix()
+    let el = this as Element
+    do {
+      mat.prependMatrix(el.getMatrix())
+    } while ((el = el.parent))
+
+    return mat
+  }
+
+  public local2global(x: number, y: number) {
+    let mat = this.getWorldMatrix()
+    return mat.transformPoint(x, y)
+  }
+
+  public global2local(x: number, y: number) {
+    let mat = this.getWorldMatrix().invert()
+    return mat.transformPoint(x, y)
+  }
+
+  public local2local(el: Element, x: number, y: number) {
+    const p = this.local2global(x, y)
+    return el.global2local(p.x, p.y)
   }
 }

@@ -26,8 +26,7 @@ export default class Stage extends Group {
   public readonly root = true
   public canvas: HTMLCanvasElement
   public ctx: CanvasRenderingContext2D
-  public offCanvas: HTMLCanvasElement
-  public offCtx: CanvasRenderingContext2D
+  public offCtx = document.createElement('canvas').getContext('2d')
   public width: number
   public height: number
   public domStyle: CSSStyleDeclaration
@@ -45,6 +44,8 @@ export default class Stage extends Group {
 
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')
+    this.offCtx.canvas.width = 1
+    this.offCtx.canvas.height = 1
     this.domStyle = getComputedStyle(this.canvas)
     this.mouseMoveOutside = mouseMoveOutside
 
@@ -93,17 +94,17 @@ export default class Stage extends Group {
 
   // 碰撞检测
   getHitItem(x: number, y: number) {
-    this.offCanvas && this.offCanvas.remove()
-    this.offCanvas = document.createElement('canvas')
-    this.offCtx = this.offCanvas.getContext('2d')
-    const { offCanvas, offCtx, children } = this
+    if (this.ignoreEvent) return
+    const { offCtx, children } = this
 
     const xx = -x
     const yy = -y
-    offCanvas.width = offCanvas.height = 1
-    this.setTransform(offCtx)
-    offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height)
+    offCtx.save()
+    offCtx.clearRect(0, 0, 1, 1)
     offCtx.translate(xx, yy)
+    this.setTransform(offCtx)
+    const el = this.hit(children)
+    offCtx.restore()
 
     // offCanvas.width = offCanvas.height = 1000
     // offCanvas.style.width = '500px'
@@ -114,14 +115,15 @@ export default class Stage extends Group {
     // offCtx.arc(x, y, 20, 0, Math.PI * 2)
     // offCtx.fill()
 
-    return this.hit(children)
+    return el
   }
 
   // 深度优先,从右向左
   private hit(tree: (Group | Shape)[]): Shape | null {
     for (let i = tree.length - 1; i >= 0; i--) {
       let item = tree[i]
-      let res
+      if (item.ignoreEvent) continue
+      let res = null
       if (item instanceof Group) {
         this.offCtx.save()
         item.setTransform(this.offCtx)

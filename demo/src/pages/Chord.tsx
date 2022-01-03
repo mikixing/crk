@@ -1,6 +1,10 @@
 import React, { useEffect, useRef } from 'react'
-import { Stage, Group, Shape, deg2rad } from '@mikixing/crk'
+import { Stage, Group, Shape as BaseShape, deg2rad } from '@mikixing/crk'
 import { initCanvas, getRoundCircle, Vector } from '../util'
+
+class Shape extends BaseShape {
+  public type?: string = ''
+}
 
 const data = {
   title: {
@@ -90,10 +94,16 @@ export default function Diagram() {
       return end + gap
     }, 0)
 
+    stage.enableMouseOver(10)
     // 绘制
     drawTitle()
     drawContent()
-    stage.update()
+    update()
+
+    function update() {
+      stage.update()
+      requestAnimationFrame(update)
+    }
 
     function drawTitle() {
       const shape = new Shape()
@@ -114,14 +124,31 @@ export default function Diagram() {
 
     function drawContent() {
       const grp = new Group()
-      // grp.alpha = 0.5
-      const shape = new Shape()
-      const g = shape.graphics
-      grp.addChild(shape)
       stage.addChild(grp)
-
       grp.x = origin.x
       grp.y = origin.y
+
+      grp.on('mouseover', ev => {
+        const { target } = ev
+        grp.children.forEach(child => {
+          if (target.type === 'base' || target.type === 'text') {
+            if ((child as Group).getChildIndex(target) > -1) return
+          }
+          const children = (child as Group).children as Shape[]
+          children.forEach((item: Shape) => {
+            if (item !== target && item.type !== 'base' && item.type !== 'text')
+              item.visible = false
+          })
+        })
+      })
+      grp.on('mouseout', ev => {
+        grp.children.forEach(child => {
+          const children = (child as Group).children as Shape[]
+          children.forEach((item: Shape) => {
+            item.visible = true
+          })
+        })
+      })
 
       links.reduce((lastAngle, link, i) => {
         const color = `hsl(${((i / len) * 360) | 0}, 50%, 60%)`
@@ -139,20 +166,34 @@ export default function Diagram() {
         const r2 = radius - thickness // 小圆
         const sum1 = sumList[i]
 
-        // 大圆
-        getRoundCircle(g, {
-          x: 0,
-          y: 0,
-          startAngle,
-          endAngle,
-          radius: r2,
-          thickness: r1 - r2,
-          startOuterRadius: 1000,
-          endOuterRadius: 1000,
-        })
+        const group = new Group()
+        grp.addChild(group)
 
-        g.setFillStyle(color).fill()
+        {
+          const shape = new Shape()
+          shape.type = 'base'
+          const g = shape.graphics
+          group.addChild(shape)
 
+          // 大圆
+          getRoundCircle(g, {
+            x: 0,
+            y: 0,
+            startAngle,
+            endAngle,
+            radius: r2,
+            thickness: r1 - r2,
+            startOuterRadius: 1000,
+            endOuterRadius: 1000,
+          })
+
+          g.setFillStyle(color).fill()
+        }
+
+        const shape = new Shape()
+        shape.type = 'bar'
+        const g = shape.graphics
+        group.addChild(shape)
         const list = arcList.slice()
         let count = i
         let isTraversed = true // 是否遍历
@@ -237,37 +278,48 @@ export default function Diagram() {
           if (bordered) g.stroke()
         }
 
-        // 文字
-        // 圆弧起点,中点,结束点
-        const sx = Math.cos(startRad) * r1
-        const sy = Math.sin(startRad) * r1
-        const cx = Math.cos(deg2rad * ca) * r1
-        const cy = Math.sin(deg2rad * ca) * r1
-        const ex = Math.cos(endRad) * r1
-        const ey = Math.sin(endRad) * r1
+        {
+          // 文字
+          // 圆弧起点,中点,结束点
+          const shape = new Shape()
+          shape.type = 'text'
+          group.addChild(shape)
+          const g = shape.graphics
+          const sx = Math.cos(startRad) * r1
+          const sy = Math.sin(startRad) * r1
+          const cx = Math.cos(deg2rad * ca) * r1
+          const cy = Math.sin(deg2rad * ca) * r1
+          const ex = Math.cos(endRad) * r1
+          const ey = Math.sin(endRad) * r1
 
-        const { font, fontColor } = style
-        ctx?.save()
-        ctx.font = font
-        const text = labels[i] ?? '未命名'
-        const textSizeObj = ctx?.measureText(text)
-        ctx?.restore()
-        let { width: labelWidth, fontBoundingBoxAscent: labelHeight } =
-          textSizeObj
+          const { font, fontColor } = style
+          ctx?.save()
+          ctx.font = font
+          const text = labels[i] ?? '未命名'
+          const textSizeObj = ctx?.measureText(text)
+          ctx?.restore()
+          let { width: labelWidth, fontBoundingBoxAscent: labelHeight } =
+            textSizeObj
 
-        const v = new Vector(cx, cy)
-        const vv = v
-          .normalize()
-          .scale(labelWidth / 2)
-          .add(v)
+          const v = new Vector(cx, cy)
+          const vv = v
+            .normalize()
+            .scale(labelWidth / 2)
+            .add(v)
 
-        g.beginPath()
-          .setFillStyle(fontColor)
-          .setTextStyle({ font, baseline: 'middle', textAlign: 'center' })
+          g.beginPath()
+            .setFillStyle(fontColor)
+            .setTextStyle({ font, baseline: 'middle', textAlign: 'center' })
+          g.fillText(text, vv.x, vv.y).setFillStyle('#666')
+          g.fill()
 
-        g.fillText(text, vv.x, vv.y).setFillStyle('#666')
-
-        g.fill()
+          shape.setEventRect(
+            vv.x - labelWidth / 2,
+            vv.y - labelHeight / 2,
+            labelWidth,
+            labelHeight
+          )
+        }
         return endAngle + gap
       }, 0)
     }

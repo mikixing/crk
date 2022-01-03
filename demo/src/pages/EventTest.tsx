@@ -46,7 +46,7 @@ export default function EvenTest() {
     const canvas = canvasRef.current as HTMLCanvasElement
     initCanvas(canvas, 800, 600)
 
-    const stage = new Stage(canvas, true)
+    const stage = new Stage(canvas)
     stage.x = 200
     stage.y = 50
 

@@ -78,6 +78,13 @@ export default class Group extends Element {
   // 层级操作
   public setChildIndex(child: Item, index: number) {
     if (index < 0 || index > this.children.length) return
+    const currentIndex = this.children.indexOf(child)
+    this.children.splice(currentIndex, 1)
+    if (index > currentIndex) {
+      this.children.splice(index + 1, 0, child)
+    } else {
+      this.children.splice(index, 0, child)
+    }
   }
 
   public getChildIndex(child: Item) {
@@ -85,7 +92,7 @@ export default class Group extends Element {
   }
 
   public doUpdate(ctx: CanvasRenderingContext2D) {
-    if (this.alpha === 0) return
+    if (this.alpha === 0 || !this.visible) return
 
     ctx.save()
     this.setTransform(ctx)

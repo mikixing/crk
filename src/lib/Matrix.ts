@@ -78,8 +78,8 @@ export default class Matrix {
   }
 
   skew(skewX: number, skewY: number) {
-    const sx = skewX * deg2rad
-    const sy = skewY * deg2rad
+    const sx = skewX
+    const sy = skewY
 
     const cosx = Math.cos(sx)
     const sinx = Math.sin(sx)

@@ -21,7 +21,7 @@ export default function DetectCollision() {
         'http://localhost:3000/images/haha.webp',
       ]
 
-      await Promise.all(images.map(url => loadImage(url))).then(arr => {
+      await loadImage(images).then(arr => {
         arr.forEach(img => {
           const cx = img.width / 2
           const cy = img.height / 2

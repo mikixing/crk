@@ -1,4 +1,4 @@
-export default function loadImage(url: string): Promise<HTMLImageElement> {
+function _loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((r, j) => {
     const img = new Image()
 
@@ -7,4 +7,8 @@ export default function loadImage(url: string): Promise<HTMLImageElement> {
 
     img.src = url
   })
+}
+
+export default function loadImage(list: string[]) {
+  return Promise.all(list.map(_loadImage))
 }

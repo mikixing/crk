@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { Stage } from '.'
 import Matrix, { deg2rad } from './lib/Matrix'
 import { SyntheticEvent } from './lib/SyntheticEvent'
 
@@ -22,6 +23,16 @@ export interface Rectangle {
   height: number
 }
 
+export interface CacheData {
+  x: number
+  y: number
+  width: number
+  height: number
+  dpr: number
+  canvas: HTMLCanvasElement
+  notCacheCanvas?: boolean
+}
+
 let count = 0
 export default abstract class Element
   extends EventEmitter
@@ -32,8 +43,6 @@ export default abstract class Element
   public y = 0
   public regX = 0
   public regY = 0
-  public scaleX: number
-  public scaleY: number
   public scale = 1
   public rotation = 0
   public skewX = 0
@@ -43,40 +52,35 @@ export default abstract class Element
   public transformMatrix: any
   public parent: Element | null
   public ignoreEvent = false
+  public rect?: { x: number; y: number; width: number; height: number }
 
-  // private boundingBox: Rectangle
+  private _scaleX: number
+  private _scaleY: number
+  private _eventRect: Rectangle = null
+
+  protected cacheData: CacheData = null
 
   protected abstract doUpdate(ctx: CanvasRenderingContext2D): void
 
+  get scaleX() {
+    return this._scaleX ?? this.scale
+  }
+
+  set scaleX(v) {
+    this._scaleX = v
+  }
+
+  get scaleY() {
+    return this._scaleY ?? this.scale
+  }
+
+  set scaleY(v) {
+    this._scaleY = v
+  }
+
   setTransform(ctx: CanvasRenderingContext2D) {
-    const {
-      x = 0,
-      y = 0,
-      rotation = 0,
-      transformMatrix,
-      scale = 1,
-      regX = 0,
-      regY = 0,
-      alpha = 1,
-      skewX = 0,
-      skewY = 0,
-    } = this
-
-    const scaleX = this.scaleX ?? scale
-    const scaleY = this.scaleY ?? scale
-
-    ctx.globalAlpha *= alpha
-
-    const mat =
-      transformMatrix ||
-      new Matrix()
-        .translate(x, y)
-        .skew(skewX * deg2rad, skewY * deg2rad)
-        .rotate(rotation * deg2rad)
-        .scale(scaleX, scaleY)
-        .translate(-regX, -regY)
-
-    const { a, b, c, d, e, f } = mat
+    ctx.globalAlpha *= this.alpha
+    const { a, b, c, d, e, f } = this.getMatrix()
     ctx.transform(a, b, c, d, e, f)
   }
 
@@ -84,29 +88,71 @@ export default abstract class Element
     opt && Object.assign(this, opt)
   }
 
-  // setBoundingBox(
-  //   x: number,
-  //   y: number,
-  //   width: number,
-  //   height: number
-  // ): Rectangle {
-  //   this.boundingBox = { x, y, width, height }
-  //   return this.boundingBox
-  // }
+  setEventRect(x: number, y: number, width: number, height: number): Rectangle {
+    this._eventRect = { x, y, width, height }
+    return this._eventRect
+  }
 
-  // getBoundingBox(): Rectangle | null | undefined {
-  //   return this.boundingBox
-  // }
+  getEventRect(): Rectangle | null | undefined {
+    return this._eventRect
+  }
+
+  cache(x: number, y: number, width: number, height: number, dpr = 1) {
+    const canvas = document.createElement('canvas')
+    canvas.width = width * dpr
+    canvas.height = height * dpr
+    this.cacheData = {
+      x,
+      y,
+      width,
+      height,
+      dpr,
+      canvas,
+    }
+    this.updateCache()
+  }
+  updateCache() {
+    if (!this.cacheData) throw new Error('please use cache() first!')
+    const { canvas, x, y, width, height, dpr } = this.cacheData
+    this.cacheData.notCacheCanvas = true
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, width * dpr, height * dpr)
+    ctx.save()
+    ctx.scale(dpr, dpr)
+    ctx.translate(-x, -y)
+    this.doUpdate(ctx)
+    ctx.restore()
+    this.cacheData.notCacheCanvas = false
+  }
+  protected applyCache(ctx: CanvasRenderingContext2D) {
+    const { canvas, x, y, width, height, dpr } = this.cacheData
+    ctx.drawImage(canvas, 0, 0, width * dpr, height * dpr, x, y, width, height)
+    // document.body.appendChild(canvas)
+    return
+  }
 
   getMatrix() {
+    const {
+      x = 0,
+      y = 0,
+      rotation = 0,
+      transformMatrix,
+      scaleX,
+      scaleY,
+      regX = 0,
+      regY = 0,
+      skewX = 0,
+      skewY = 0,
+    } = this
+
     return (
-      this.transformMatrix ||
+      transformMatrix ||
       new Matrix()
-        .translate(this.x, this.y)
-        .skew(this.skewX, this.skewY)
-        .rotate(this.rotation)
-        .scale(this.scaleX ?? this.scale, this.scaleY ?? this.scale)
-        .translate(-this.regX, -this.regY)
+        .translate(x, y)
+        .skew(skewX * deg2rad, skewY * deg2rad)
+        .rotate(rotation * deg2rad)
+        .scale(scaleX, scaleY)
+        .translate(-regX, -regY)
     )
   }
 

@@ -26,7 +26,7 @@ export default class Stage extends Group {
   public readonly root = true
   public canvas: HTMLCanvasElement
   public ctx: CanvasRenderingContext2D
-  public offCtx = document.createElement('canvas').getContext('2d')
+  public offCtx = document.createElement('canvas').getContext('2d') // offline ctx
   public width: number
   public height: number
   public domStyle: CSSStyleDeclaration
@@ -36,7 +36,7 @@ export default class Stage extends Group {
   private state: STATE = STATE.IDLE
   private mousemoveDomEvent: MouseEvent = null
 
-  constructor(canvas: HTMLCanvasElement, mouseMoveOutside?: boolean) {
+  constructor(canvas: HTMLCanvasElement) {
     super()
 
     if (!(canvas instanceof HTMLCanvasElement) || !canvas)
@@ -47,9 +47,8 @@ export default class Stage extends Group {
     this.offCtx.canvas.width = 1
     this.offCtx.canvas.height = 1
     this.domStyle = getComputedStyle(this.canvas)
-    this.mouseMoveOutside = mouseMoveOutside
 
-    this.registerDomEvent()
+    this.bindEvent()
   }
 
   public clearCanvas() {
@@ -94,7 +93,7 @@ export default class Stage extends Group {
 
   // 碰撞检测
   getHitItem(x: number, y: number) {
-    if (this.ignoreEvent) return
+    if (this.ignoreEvent || !this.visible) return
     const { offCtx, children } = this
 
     const xx = -x
@@ -103,7 +102,7 @@ export default class Stage extends Group {
     offCtx.clearRect(0, 0, 1, 1)
     offCtx.translate(xx, yy)
     this.setTransform(offCtx)
-    const el = this.hit(children)
+    const el = this.hit(children, x, y)
     offCtx.restore()
 
     // offCanvas.width = offCanvas.height = 1000
@@ -119,15 +118,34 @@ export default class Stage extends Group {
   }
 
   // 深度优先,从右向左
-  private hit(tree: (Group | Shape)[]): Shape | null {
+  private hit(
+    tree: (Group | Shape)[],
+    clickX?: number,
+    clickY?: number
+  ): Group | Shape | null {
     for (let i = tree.length - 1; i >= 0; i--) {
       let item = tree[i]
       if (item.ignoreEvent) continue
       let res = null
+      const _eventRect = item.getEventRect()
+      if (_eventRect) {
+        const { x, y, width, height } = _eventRect
+        const clickPoint = item.global2local(clickX, clickY)
+        if (
+          x <= clickPoint.x &&
+          x + width >= clickPoint.x &&
+          y <= clickPoint.y &&
+          y + height >= clickPoint.y
+        ) {
+          return item
+        } else {
+          continue
+        }
+      }
       if (item instanceof Group) {
         this.offCtx.save()
         item.setTransform(this.offCtx)
-        res = this.hit(item.children)
+        res = this.hit(item.children, clickX, clickY)
         this.offCtx.restore()
       } else if (item instanceof Shape) {
         // 绘制shape
@@ -157,8 +175,7 @@ export default class Stage extends Group {
 
   public enableMouseOver(second = 10) {
     let timer: NodeJS.Timeout
-    let hoverTarget: Shape = null
-
+    let hoverTarget: Shape | Group = null
     this.canvas.addEventListener('mouseover', (ev: MouseEvent) => {
       let isInit = true
       timer = setInterval(() => {
@@ -251,9 +268,9 @@ export default class Stage extends Group {
     )
   }
 
-  private registerDomEvent() {
-    let clickTarget: Shape = null
-    let pressTarget: Shape = null
+  private bindEvent() {
+    let clickTarget: Shape | Group = null
+    let pressTarget: Shape | Group = null
 
     // click事件
     this.canvas.addEventListener('click', (ev: MouseEvent) => {
@@ -311,10 +328,9 @@ export default class Stage extends Group {
     })
 
     // pressmove事件
-    const targetEl = this.mouseMoveOutside
-      ? document.documentElement
-      : this.canvas
-    targetEl.addEventListener('mousemove', (ev: MouseEvent) => {
+    document.addEventListener('mousemove', (ev: MouseEvent) => {
+      if (!this.mouseMoveOutside && ev.target !== this.canvas) return
+
       const { x, y } = this.getMouseCoordinateOnCanvas(ev)
       if (
         pressTarget &&
@@ -333,7 +349,9 @@ export default class Stage extends Group {
       this.mousemoveDomEvent = ev
     })
 
-    targetEl.addEventListener('mouseup', (ev: MouseEvent) => {
+    document.addEventListener('mouseup', (ev: MouseEvent) => {
+      if (!this.mouseMoveOutside && ev.target !== this.canvas) return
+
       const { x, y } = this.getMouseCoordinateOnCanvas(ev)
 
       if (pressTarget) {

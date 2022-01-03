@@ -18,7 +18,8 @@ export default class Shape extends Element {
     let { graphics: g, visible } = this
     let { actions } = g
     if (!visible) return
-
+    if (this.cacheData && !this.cacheData.notCacheCanvas)
+      return this.applyCache(ctx)
     let statusCount = 0
 
     ctx.save()

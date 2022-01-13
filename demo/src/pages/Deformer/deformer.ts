@@ -47,6 +47,7 @@ export default class Deformer {
   private cvShapes: Shape[] = []
   private rotateBtn = new Shape()
   private bar = new Shape()
+  private pivotShape = new Shape()
 
   constructor(els = [] as Element[], container: Group, opt = {} as IOption) {
     this.els = els
@@ -152,7 +153,7 @@ export default class Deformer {
   }
 
   private generateRotateBtn(el: Element) {
-    let { toolGrp, cvs, color, radius, rotateBtn, bar } = this
+    let { toolGrp, cvs, color, radius, rotateBtn, bar, pivotShape } = this
     const { rect } = el
     const { width, height } = rect as IRect
 
@@ -207,6 +208,18 @@ export default class Deformer {
       .stroke()
     toolGrp.addChild(bar)
     toolGrp.setChildIndex(bar, 0)
+
+    const tmp = el.local2local(
+      toolGrp,
+      this.cvs[1].x * width,
+      this.cvs[3].y * height
+    )
+    pivotShape.graphics
+      .clear()
+      .arc(tmp.x, tmp.y, 6, 0, Math.PI * 2)
+      .setStrokeStyle({ color: '#222' })
+      .stroke()
+    toolGrp.addChild(pivotShape)
 
     let lv: Vector // start vector
     rotateBtn.on('pressdown', (ev: any) => {
@@ -268,7 +281,7 @@ export default class Deformer {
   }
 
   private updateRotateBtn(el: Element) {
-    const { radius, toolGrp, rotateBtn, bar, color } = this
+    const { radius, toolGrp, rotateBtn, bar, color, pivotShape } = this
     const { rect } = el
     const { width, height } = rect as IRect
     const pivot = { x: this.cvs[1].x * width, y: this.cvs[1].y * height }
@@ -320,6 +333,17 @@ export default class Deformer {
       .setStrokeStyle({ color })
       .moveTo(pt.x, pt.y)
       .lineTo(pt.x + v.x, pt.y + v.y)
+      .stroke()
+
+    const tmp = el.local2local(
+      toolGrp,
+      this.cvs[1].x * width,
+      this.cvs[3].y * height
+    )
+    pivotShape.graphics
+      .clear()
+      .arc(tmp.x, tmp.y, 6, 0, Math.PI * 2)
+      .setStrokeStyle({ color: '#222' })
       .stroke()
   }
 

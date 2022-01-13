@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { Stage, Group, Shape as BaseShape, deg2rad } from '@mikixing/crk'
+import { ease } from '@mikixing/transition'
 import { initCanvas, getRoundCircle, Vector } from '../util'
 
 class Shape extends BaseShape {
@@ -22,7 +23,7 @@ const data = {
     [30, 40, 80, 20, 40, 34, 8],
     [30, 40, 80, 20, 40, 20, 10],
   ],
-  radius: 250,
+  radius: 200,
   thickness: 20,
   gap: 3, // 圆弧间的间隔角度
   style: {
@@ -31,6 +32,9 @@ const data = {
   },
   bordered: true,
 }
+
+let isNeedUpdate = true
+let id: number
 
 function stdList(list: number[], len: number, val = 0): number[] {
   const ret = Array(len).fill(val)
@@ -43,6 +47,7 @@ function stdList(list: number[], len: number, val = 0): number[] {
 
 export default function Diagram() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  isNeedUpdate = true
 
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
@@ -101,8 +106,10 @@ export default function Diagram() {
     update()
 
     function update() {
-      stage.update()
-      requestAnimationFrame(update)
+      if (isNeedUpdate) {
+        stage.update()
+      }
+      id = requestAnimationFrame(update)
     }
 
     function drawTitle() {
@@ -128,26 +135,58 @@ export default function Diagram() {
       grp.x = origin.x
       grp.y = origin.y
 
+      let timer: NodeJS.Timeout
+
       grp.on('mouseover', ev => {
         const { target } = ev
-        grp.children.forEach(child => {
-          if (target.type === 'base' || target.type === 'text') {
-            if ((child as Group).getChildIndex(target) > -1) return
-          }
-          const children = (child as Group).children as Shape[]
-          children.forEach((item: Shape) => {
-            if (item !== target && item.type !== 'base' && item.type !== 'text')
-              item.visible = false
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          grp.children.forEach(child => {
+            if (target.type === 'base' || target.type === 'text') {
+              if ((child as Group).getChildIndex(target) > -1) return
+            }
+            const children = (child as Group).children as Shape[]
+            children.forEach((item: Shape) => {
+              if (
+                item !== target &&
+                item.type !== 'base' &&
+                item.type !== 'text'
+              ) {
+                item.alpha = 0
+                // ease(
+                //   { alpha: 1 },
+                //   {
+                //     alpha: 0,
+                //     onUpdate: obj => {
+                //       item.alpha = obj.alpha
+                //     },
+                //   }
+                // )
+              }
+            })
           })
-        })
+        }, 300)
       })
       grp.on('mouseout', ev => {
-        grp.children.forEach(child => {
-          const children = (child as Group).children as Shape[]
-          children.forEach((item: Shape) => {
-            item.visible = true
+        const { target } = ev
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          grp.children.forEach(child => {
+            const children = (child as Group).children as Shape[]
+            children.forEach((item: Shape) => {
+              item.alpha = 1
+              // ease(
+              //   { alpha: item.alpha },
+              //   {
+              //     alpha: 1,
+              //     onUpdate: obj => {
+              //       item.alpha = obj.alpha
+              //     },
+              //   }
+              // )
+            })
           })
-        })
+        }, 300)
       })
 
       links.reduce((lastAngle, link, i) => {
@@ -322,6 +361,12 @@ export default function Diagram() {
         }
         return endAngle + gap
       }, 0)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(id)
     }
   }, [])
 

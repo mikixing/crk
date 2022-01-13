@@ -11,3 +11,35 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.nav {
+  width: 200px;
+  height: 100%;
+}
+
+.nav .ant-menu-item {
+  height: 30px !important;
+  line-height: 30px !important;
+}
+
+.content {
+  flex: 1;
+}
+
+/*
+  禁止双击选中文字
+*/
+.noSelect {
+  -webkit-touch-callout: none;
+  /*系统默认菜单被禁用 iOS Safari*/
+  -webkit-user-select: none;
+  /*webkit浏览器 Chrome/Safari/Opera*/
+  -khtml-user-select: none;
+  /*早期浏览器 Konqueror*/
+  -moz-user-select: none;
+  /*火狐 Firefox*/
+  -ms-user-select: none;
+  /*IE10 Internet Explorer/Edge*/
+  user-select: none;
+  /* Non-prefixed version, currently not supported by any browser */
+}

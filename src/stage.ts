@@ -271,7 +271,11 @@ export default class Stage extends Group {
   private bindEvent() {
     let clickTarget: Shape | Group = null
     let pressTarget: Shape | Group = null
-
+    // 鼠标右键事件
+    this.canvas.addEventListener('contextmenu', (ev: MouseEvent) => {
+      clickTarget = null
+      pressTarget = null
+    })
     // click事件
     this.canvas.addEventListener('click', (ev: MouseEvent) => {
       const { x, y } = this.getMouseCoordinateOnCanvas(ev)

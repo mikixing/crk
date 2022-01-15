@@ -140,5 +140,23 @@ export const rand = (min: number, max: number) => {
   return Math.random() * (max - min) + min
 }
 
+export function getFileDataURL(file: File) {
+  return new Promise((r, j) => {
+    const reader = new FileReader()
+    reader.onload = (ev: any) => r(ev.target.result)
+    reader.onerror = j
+    reader.readAsDataURL(file)
+  })
+}
+
+export function getFileText(file: File) {
+  return new Promise((r, j) => {
+    const reader = new FileReader()
+    reader.onload = (ev: any) => r(ev.target.result)
+    reader.onerror = j
+    reader.readAsText(file)
+  })
+}
+
 export { default as getRoundCircle } from './getRoundCircle'
 export { default as loadImage } from './loadImage'

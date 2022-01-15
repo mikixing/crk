@@ -22,31 +22,38 @@ interface IPoint {
   y: number
 }
 
+type TDisplayType = 'normal' | 'compact'
+
+enum DisplayType {
+  normal,
+  compact,
+}
+
 const data: Node = {
   name: '1',
   children: [
     {
       name: '2',
       children: [
-        { name: '3', children: [] },
-        { name: '4', children: [] },
-        {
-          name: '5',
-          children: [
-            { name: '6', children: [] },
-            { name: '7', children: [] },
-            { name: '8', children: [] },
-          ],
-        },
+        { name: 'ccc', children: [] },
+        { name: 'ddd', children: [] },
+        // {
+        // name: 'eee',
+        // children: [
+        //   { name: 'xxx', children: [] },
+        //   { name: 'www', children: [] },
+        //   { name: 'yyy', children: [] },
+        // ],
+        // },
       ],
     },
-    { name: '9', children: [] },
+    // { name: 'fff', children: [] },
     {
       name: '10',
       children: [
-        { name: '11', children: [] },
-        { name: '12', children: [] },
-        { name: '13', children: [] },
+        // { name: 'jjj', children: [] },
+        // { name: 'kkk', children: [] },
+        // { name: 'lll', children: [] },
       ],
     },
   ],
@@ -57,14 +64,17 @@ let dimensionTree = {} as Record<string, { x: number; y: number }>
 let level = 0
 
 const RADIUS = 20 // shape的半径
-const DIAMETER = RADIUS * 2 // shape的直径
 const MARGIN_X = 60 // 子节点之间的水平衡距离
 const MARGIN_Y = 120 // 父子节点的垂直距离
-const DISTANCE = 50 // 子树之间的距离
 
 let isNeedUpdate = true
 let stage: Stage
 let id: number
+
+let displayMap = {} as Record<
+  number | string,
+  Record<'el' | 'width' | 'height', any>
+>
 
 class Shape extends BaseShape {
   public type?: string
@@ -72,6 +82,7 @@ class Shape extends BaseShape {
   public width?: number
   public height?: number
   public points?: IPoint[]
+  public level?: number
 }
 
 function update(stage: Stage) {
@@ -195,12 +206,12 @@ export default function Tree() {
     canvas.style.height = '100%'
 
     stage = new Stage(canvas)
-    stage.x = 100
-    stage.y = 50
+    // stage.x = 100
+    // stage.y = 50
 
     const { el: rootNode } = initTree(data, 0, stage)
-    layout(rootNode, 0)
-    console.log(dimensionTree)
+    layout(rootNode)
+    console.log('------', displayMap)
     stage.addChild(rootNode)
     stage.enableMouseOver(10)
 
@@ -409,7 +420,7 @@ export default function Tree() {
     <>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', border: '1px solid red' }}
       ></canvas>
       <div
         style={{
@@ -431,6 +442,27 @@ export default function Tree() {
           onClick={() => resort((stage as Group).children[0] as Group)}
         >
           resort
+        </Button>
+        <br />
+        <br />
+        <Button
+          size="small"
+          onClick={() => {
+            layout(stage.children[0], DisplayType.normal)
+            isNeedUpdate = true
+          }}
+        >
+          普通
+        </Button>
+        <Button
+          size="small"
+          onClick={() => {
+            layoutForCompact(stage.children[0])
+            isNeedUpdate = true
+            console.log('******', displayMap)
+          }}
+        >
+          紧凑
         </Button>
       </div>
     </>
@@ -484,32 +516,93 @@ function initTree(node: Node, level = 0, stage: Stage) {
 
     return { el: grp }
   }
+  shape.level = level
   return { el: shape, width: shapeWidth, height: fixedHeight }
 }
-function layout(
-  tree: Group | Shape,
-  level: number,
-  mode: 'normal' | 'closed' = 'normal'
-) {
+function layout(node: Group | Shape, displayType = DisplayType.normal) {
   let totalWidth = 0
-  let maxHeight = -Infinity
   let fixedHeight = 40
   let lineShape!: Shape
   let rootShape!: Shape
+  let maxHeight = -Infinity
   const pts = [] as IPoint[]
 
-  if ((tree as Group)?.children?.length) {
-    let newLevel = level + 1
-    ;(tree as Group)?.children.forEach((e: Shape | Group, i: number) => {
+  if ((node as Group)?.children?.length) {
+    ;(node as Group)?.children.forEach((e: Shape | Group, i: number) => {
       let count = i
-      const { width: elWidth, height: elHeight } = layout(e, newLevel)
-      if (e instanceof Shape && e.type === 'line') {
-        lineShape = e as Shape
-        return
+      const { width: elWidth, height: elHeight } = layout(e)
+      if (e instanceof Shape) {
+        if (e.type === 'line') {
+          lineShape = e as Shape
+          return
+        } else if (e.type === 'root') {
+          rootShape = e as Shape
+          return
+        }
       }
-      if (e instanceof Shape && e.type === 'root') {
-        rootShape = e as Shape
-        return
+
+      maxHeight = Math.max(maxHeight, elHeight)
+
+      if (count) {
+        if (lineShape) count--
+        if (rootShape) count--
+        count && (totalWidth += MARGIN_X)
+      }
+      e.x = totalWidth
+      e.y = MARGIN_Y
+      totalWidth += elWidth
+      pts.push({ x: totalWidth - elWidth / 2, y: MARGIN_Y })
+    })
+    if (rootShape) {
+      const { width = 0 } = rootShape
+      rootShape.x = (totalWidth - width) / 2
+    }
+    if (lineShape) {
+      const { points = [] } = lineShape
+      // 保留points引用
+      points.forEach((p, i) => {
+        if (i === 0) {
+          p.x = totalWidth / 2
+          p.y = fixedHeight
+        } else {
+          p.x = pts[i - 1].x
+          p.y = pts[i - 1].y
+        }
+      })
+      drawLine(lineShape)
+    }
+    const totalHeight = maxHeight + MARGIN_Y
+
+    return { width: totalWidth, height: totalHeight }
+  }
+  node.x = 0
+  node.y = 0
+  return { width: (node as Shape).width ?? 0, height: fixedHeight }
+}
+
+function layoutForCompact(node: Group | Shape) {
+  let totalWidth = 0
+  let fixedHeight = 40
+  let lineShape!: Shape
+  let rootShape!: Shape
+  let maxHeight = -Infinity
+  let maxX = 0
+  const pts = [] as IPoint[]
+
+  if ((node as Group)?.children?.length) {
+    let maxWidth = 0
+    ;(node as Group)?.children.forEach((e: Shape | Group, i: number) => {
+      let count = i
+      const { width: elWidth, height: elHeight, maxX = 0 } = layoutForCompact(e)
+      maxWidth = Math.max(maxX as number, maxWidth)
+      if (e instanceof Shape) {
+        if (e.type === 'line') {
+          lineShape = e as Shape
+          return
+        } else if (e.type === 'root') {
+          rootShape = e as Shape
+          return
+        }
       }
 
       maxHeight = Math.max(maxHeight, elHeight)
@@ -547,11 +640,36 @@ function layout(
     }
     const totalHeight = maxHeight + MARGIN_Y
 
-    return { width: totalWidth, height: totalHeight }
+    node.x = maxWidth
+    maxWidth = 0
+
+    return { width: totalWidth, height: totalHeight, maxX }
   }
-  tree.x = 0
-  tree.y = 0
-  return { width: (tree as Shape).width ?? 0, height: fixedHeight }
+  node.x = 0
+  node.y = 0
+
+  if (node instanceof Shape && node.type !== 'line' && node.type !== 'root') {
+    const { level = 0 } = node
+    const compareEl = displayMap[level]
+    let lastWidth, lastHeight
+
+    if (compareEl) {
+      const { el } = compareEl
+      const p = el.local2global(el.x, el.y)
+      lastWidth = p.x + el.width + MARGIN_X
+      lastHeight = p.y
+    } else {
+      lastWidth = 0
+      lastHeight = 0
+    }
+    maxX = Math.max(maxX, lastWidth)
+    displayMap[level] = {
+      el: node,
+      width: node.width,
+      height: node.height,
+    }
+  }
+  return { width: (node as Shape).width ?? 0, height: fixedHeight, maxX }
 }
 
 function drawLine(shape: Shape, clear = true) {

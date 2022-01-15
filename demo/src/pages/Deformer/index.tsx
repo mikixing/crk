@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Deformer from './deformer'
 import { Stage, Group, Bitmap as RawBitmap } from '@mikixing/crk'
-import { initCanvas, loadImage } from '../../util'
-
-// import style from './module.less'
+import { initCanvas, loadImage, getFileDataURL, getFileText } from '../../util'
+import { Upload, message, Button } from 'antd'
+import { UploadOutlined } from '@ant-design/icons'
 
 class Bitmap extends RawBitmap {
   rect?: { x: number; y: number; width: number; height: number }
@@ -14,10 +14,10 @@ const deformerList = [] as Deformer[]
 let bmGrp: Group
 let deformerGrp: Group
 
-function addImage(img: HTMLImageElement) {
+function addImage(img: HTMLImageElement, canvas?: HTMLCanvasElement) {
   const bm = new Bitmap(img)
-  const x = Math.random() * 100
-  const y = Math.random() * 100
+  const x = Math.random() * Math.max(80, canvas?.offsetWidth ?? 100)
+  const y = Math.random() * Math.max(80, canvas?.offsetHeight ?? 100)
   bm.rect = {
     x,
     y,
@@ -49,12 +49,34 @@ function addImage(img: HTMLImageElement) {
         d.toggleHover(false)
       })
       deformer?.toggleActive?.()
+
+      let ox = bm.x,
+        oy = bm.y // target origin x, y
+      let p1: { x: number; y: number } = bm.parent.global2local(ev.x, ev.y)
+      let pressmoveFn: (ev: any) => void
+      let pressupFn: (ev: any) => void
+      bm.on(
+        'pressmove',
+        (pressmoveFn = ev => {
+          const p2 = bm.parent.global2local(ev.x, ev.y) // 鼠标位置在bmGrp中对应的坐标
+          bm.x = ox + p2.x - p1.x
+          bm.y = oy + p2.y - p1.y
+          deformer.update()
+          deformer?.toggleActive?.()
+        })
+      )
+      bm.on(
+        'pressup',
+        (pressupFn = ev => {
+          bm.removeListener('pressmove', pressmoveFn)
+          bm.removeListener('pressup', pressupFn)
+        })
+      )
     })
 }
 
 async function init(canvas: HTMLCanvasElement) {
   canvas.getContext('2d') as CanvasRenderingContext2D
-  initCanvas(canvas, 600, 500)
   const stage = new Stage(canvas)
   bmGrp = new Group()
   deformerGrp = new Group()
@@ -69,7 +91,7 @@ async function init(canvas: HTMLCanvasElement) {
   ]
   const arr = await loadImage(images)
   arr.forEach((img, i) => {
-    addImage(img)
+    addImage(img, canvas)
   })
 
   stage.enableMouseOver(16)
@@ -80,67 +102,62 @@ async function init(canvas: HTMLCanvasElement) {
     stage.update()
     requestAnimationFrame(update)
   }
+
+  canvas.addEventListener('drop', async (ev: any) => {
+    const list = ev.files
+    const file = list[0]
+
+    switch (file.type) {
+      case 'image/png':
+      case 'image/gif':
+      case 'image/jpeg': {
+        getImage(file, canvas)
+        break
+      }
+    }
+  })
 }
 
-// function useRequest (data) {
-//   const [res, setRes] = useState(null)
-//   const [loading, setLoading] = useState(false)
-
-//   const exec = () => {
-//     setLoading(true)
-//     data.axios.then(res => {
-//       setLoading(false)
-//       setRes(res)
-//     })
-//     .catch() {
-
-//     }
-//   }
-
-//   return {
-//     res,
-//     loading,
-//     exec
-//   }
-// }
+async function getImage(file: File, canvas?: HTMLCanvasElement) {
+  const dataURL = await getFileDataURL(file)
+  const image = new Image() as any
+  image.src = dataURL
+  image.onload = function () {
+    addImage(image, canvas)
+  }
+}
 
 export default function DeformerComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
+    initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
     init(canvas)
   }, [])
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    const input = inputRef.current as HTMLInputElement
-    input.onchange = function (e) {
-      const file = input?.files?.[0] as File
-      const fileReader = new FileReader()
-      fileReader.readAsDataURL(file) //读取图片
-      fileReader.addEventListener('load', function () {
-        // 读取完成
-        let res = fileReader.result as ArrayBuffer
-        // res是base64格式的图片
-        const image = new Image()
-        image.onload = function () {
-          addImage(image)
-        }
-        image.src = `${res}`
-      })
-    }
-  }, [])
+  const props = {
+    name: 'file',
+    action: 'https://www.mocky.io/v2/5cc8019d300000980a055e76',
+    headers: {
+      authorization: 'authorization-text',
+    },
+    onChange(info: any) {
+      if (info.file.status === 'done' || info.file.status === 'error') {
+        const file = info?.fileList?.[0].originFileObj as File
+        getImage(file, canvasRef.current as HTMLCanvasElement)
+      }
+    },
+  }
 
   return (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <canvas
-        style={{ width: '600px', height: '500px', backgroundColor: '#edf9ed' }}
+        style={{ backgroundColor: '#edf9ed', height: '80%' }}
         ref={canvasRef}
-        onMouseOver={function () {
-          console.log('mouseover')
-        }}
       ></canvas>
-      <input ref={inputRef} type="file" accept="image/*" />
-    </>
+      <Upload {...props} style={{ height: '60px' }}>
+        <Button icon={<UploadOutlined />}>上传图片</Button>
+      </Upload>
+    </div>
   )
 }

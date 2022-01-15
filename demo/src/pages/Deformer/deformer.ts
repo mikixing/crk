@@ -80,6 +80,7 @@ export default class Deformer {
     let ox: number, oy: number // target origin x, y
     let p1: { x: number; y: number }
     mask
+      .removeAllListeners()
       .on('pressdown', (ev: any) => {
         ox = el.x
         oy = el.y
@@ -127,26 +128,27 @@ export default class Deformer {
         signY: number,
         elWorldMat: Matrix,
         pivot = { x: this.cvs[p.i].x * width, y: this.cvs[p.i].y * height }
-      cvShape.on('pressdown', ev => {
-        this.setPivot(el as Shape, pivot.x, pivot.y)
-        elWorldMat = el.getWorldMatrix().invert()
-        sx = el.scaleX
-        sy = el.scaleY
+      cvShape
+        .removeAllListeners()
+        .on('pressdown', ev => {
+          this.setPivot(el as Shape, pivot.x, pivot.y)
+          elWorldMat = el.getWorldMatrix().invert()
+          sx = el.scaleX
+          sy = el.scaleY
 
-        const cp = elWorldMat.transformPoint(ev.x, ev.y)
-        signX = Math.sign(cp.x - pivot.x)
-        signY = Math.sign(cp.y - pivot.y)
-      })
+          const cp = elWorldMat.transformPoint(ev.x, ev.y)
+          signX = Math.sign(cp.x - pivot.x)
+          signY = Math.sign(cp.y - pivot.y)
+        })
+        .on('pressmove', (ev: any) => {
+          const cp = elWorldMat.transformPoint(ev.x, ev.y)
 
-      cvShape.on('pressmove', (ev: any) => {
-        const cp = elWorldMat.transformPoint(ev.x, ev.y)
+          p.fx && (el.scaleX = (((cp.x - pivot.x) * signX) / width) * sx)
+          p.fy && (el.scaleY = (((cp.y - pivot.y) * signY) / height) * sy)
 
-        p.fx && (el.scaleX = (((cp.x - pivot.x) * signX) / width) * sx)
-        p.fy && (el.scaleY = (((cp.y - pivot.y) * signY) / height) * sy)
-
-        this.updateMask(el)
-        this.updateTool(el)
-      })
+          this.updateMask(el)
+          this.updateTool(el)
+        })
 
       return cvShape
     })
@@ -222,28 +224,32 @@ export default class Deformer {
     toolGrp.addChild(pivotShape)
 
     let lv: Vector // start vector
-    rotateBtn.on('pressdown', (ev: any) => {
-      ev.stopPropagation()
+    rotateBtn
+      .removeAllListeners()
+      .on('pressdown', (ev: any) => {
+        ev.stopPropagation()
 
-      this.setPivot(el as Shape | Group, width / 2, height / 2)
-      const pt = (el.parent ?? el).global2local(ev.x, ev.y)
-      lv = new Vector(pt.x, pt.y).substract(new Vector(el.x, el.y)).normalize()
-    })
-    rotateBtn.on('pressmove', (ev: any) => {
-      ev.stopPropagation()
-      const pt = (el.parent ?? el).global2local(ev.x, ev.y)
-      const v = new Vector(pt.x, pt.y)
-        .substract(new Vector(el.x, el.y))
-        .normalize()
-      const theta = Math.asin(lv.cross(v))
-      lv = v
+        this.setPivot(el as Shape | Group, width / 2, height / 2)
+        const pt = (el.parent ?? el).global2local(ev.x, ev.y)
+        lv = new Vector(pt.x, pt.y)
+          .substract(new Vector(el.x, el.y))
+          .normalize()
+      })
+      .on('pressmove', (ev: any) => {
+        ev.stopPropagation()
+        const pt = (el.parent ?? el).global2local(ev.x, ev.y)
+        const v = new Vector(pt.x, pt.y)
+          .substract(new Vector(el.x, el.y))
+          .normalize()
+        const theta = Math.asin(lv.cross(v))
+        lv = v
 
-      const angle = theta * rad2deg
-      el.rotation += angle
+        const angle = theta * rad2deg
+        el.rotation += angle
 
-      this.updateMask(el)
-      this.updateTool(el)
-    })
+        this.updateMask(el)
+        this.updateTool(el)
+      })
   }
 
   private updateMask(el: Element) {
@@ -376,12 +382,17 @@ export default class Deformer {
     this.rotateBtn = new Shape()
     this.bar = new Shape()
 
-    if (els.length === 1) {
-      this.generateMask(els[0])
-      this.generateCv(els[0])
-      this.generateRotateBtn(els[0])
+    this.update()
+  }
+
+  public update() {
+    if (this.els.length === 1) {
+      const el = this.els[0]
+      this.generateMask(el)
+      this.generateCv(el)
+      this.generateRotateBtn(el)
       this.toggleHover(false)
-    } else if (els.length > 1) {
+    } else if (this.els.length > 1) {
       //
     }
   }

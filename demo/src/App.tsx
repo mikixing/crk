@@ -33,7 +33,7 @@ export default function App() {
   return (
     <>
       <HashRouter>
-        <nav className="nav">
+        <nav className="nav" style={{ height: '100%' }}>
           <Menu
             defaultSelectedKeys={['1']}
             defaultOpenKeys={['sub1']}

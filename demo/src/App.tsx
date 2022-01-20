@@ -58,18 +58,18 @@ export default function App() {
             <Menu.Item key="5">
               <Link to="/radial-bar">radial bar</Link>
             </Menu.Item>
-            <Menu.Item key="6">
+            <Menu.Item key="8">
+              <Link to="/deformer">deformer</Link>
+            </Menu.Item>
+            {/* <Menu.Item key="6">
               <Link to="/detect-collision">detect collision</Link>
             </Menu.Item>
             <Menu.Item key="7">
               <Link to="/event-test">event test</Link>
-            </Menu.Item>
-            <Menu.Item key="8">
-              <Link to="/deformer">deformer</Link>
-            </Menu.Item>
-            <Menu.Item key="9">
+            </Menu.Item> */
+            /* <Menu.Item key="9">
               <Link to="/event-rect">event rect</Link>
-            </Menu.Item>
+            </Menu.Item> */}
           </Menu>
         </nav>
         <div className="content noSelect" ref={contentRef}>

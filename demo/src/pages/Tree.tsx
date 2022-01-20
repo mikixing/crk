@@ -7,7 +7,6 @@ import {
   Element,
 } from '@mikixing/crk'
 import { initCanvas, setRoundRect } from '../util'
-import { useContentRef } from '../App'
 import { Button } from 'antd'
 import { ease } from '@mikixing/transition'
 
@@ -20,13 +19,15 @@ interface Node {
 interface IPoint {
   x: number
   y: number
+  uuid?: number
 }
 
-type TDisplayType = 'normal' | 'compact'
-
-enum DisplayType {
-  normal,
-  compact,
+class Shape extends BaseShape {
+  public type?: string
+  public text?: string
+  public width?: number
+  public height?: number
+  public points?: IPoint[]
 }
 
 const data: Node = {
@@ -37,53 +38,34 @@ const data: Node = {
       children: [
         { name: 'ccc', children: [] },
         { name: 'ddd', children: [] },
-        // {
-        // name: 'eee',
-        // children: [
-        //   { name: 'xxx', children: [] },
-        //   { name: 'www', children: [] },
-        //   { name: 'yyy', children: [] },
-        // ],
-        // },
+        {
+          name: 'eee',
+          children: [
+            { name: 'xxx', children: [] },
+            { name: 'www', children: [] },
+            { name: 'yyy', children: [] },
+          ],
+        },
       ],
     },
-    // { name: 'fff', children: [] },
+    { name: '222', children: [] },
     {
-      name: '10',
+      name: '333',
       children: [
-        // { name: 'jjj', children: [] },
-        // { name: 'kkk', children: [] },
-        // { name: 'lll', children: [] },
+        { name: 'jjj', children: [] },
+        { name: 'kkk', children: [] },
+        { name: 'lll', children: [] },
       ],
     },
   ],
 }
 
-let mode: 'normal' | 'closed' = 'normal'
-let dimensionTree = {} as Record<string, { x: number; y: number }>
-let level = 0
-
-const RADIUS = 20 // shape的半径
 const MARGIN_X = 60 // 子节点之间的水平衡距离
 const MARGIN_Y = 120 // 父子节点的垂直距离
 
 let isNeedUpdate = true
 let stage: Stage
 let id: number
-
-let displayMap = {} as Record<
-  number | string,
-  Record<'el' | 'width' | 'height', any>
->
-
-class Shape extends BaseShape {
-  public type?: string
-  public text?: string
-  public width?: number
-  public height?: number
-  public points?: IPoint[]
-  public level?: number
-}
 
 function update(stage: Stage) {
   if (isNeedUpdate) {
@@ -145,16 +127,16 @@ export default function Tree() {
       }
     })
     doResort(tree)
-    layout(tree, 0)
+    layout(tree)
     let dstMap = {} as Record<string, Shape | Group>
     walk(tree, (item: Element) => {
       let dst: Record<string, any>
       dstMap[item.uuid] = dst = item as Shape | Group
       if ((item as Shape).type === 'line') {
         const { points = [] } = item as Shape
-        points.forEach((p, i) => {
-          dst['x' + i] = p.x
-          dst['y' + i] = p.y
+        points.forEach((p, index) => {
+          dst['x' + index] = p.x
+          dst['y' + index] = p.y
         })
       }
     })
@@ -170,6 +152,7 @@ export default function Tree() {
           Object.keys(obj).forEach(k => {
             const key = k.slice(0, 1) as 'x' | 'y'
             const index = +k.slice(1)
+
             if (pts[index]) {
               pts[index][key] = obj[k] as number
             } else {
@@ -211,7 +194,6 @@ export default function Tree() {
 
     const { el: rootNode } = initTree(data, 0, stage)
     layout(rootNode)
-    console.log('------', displayMap)
     stage.addChild(rootNode)
     stage.enableMouseOver(10)
 
@@ -219,7 +201,7 @@ export default function Tree() {
       initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
       canvas.style.width = '100%'
       canvas.style.height = '100%'
-      layout(rootNode, 0)
+      layout(rootNode)
       isNeedUpdate = true
     }
 
@@ -443,27 +425,6 @@ export default function Tree() {
         >
           resort
         </Button>
-        <br />
-        <br />
-        <Button
-          size="small"
-          onClick={() => {
-            layout(stage.children[0], DisplayType.normal)
-            isNeedUpdate = true
-          }}
-        >
-          普通
-        </Button>
-        <Button
-          size="small"
-          onClick={() => {
-            layoutForCompact(stage.children[0])
-            isNeedUpdate = true
-            console.log('******', displayMap)
-          }}
-        >
-          紧凑
-        </Button>
       </div>
     </>
   )
@@ -502,8 +463,8 @@ function initTree(node: Node, level = 0, stage: Stage) {
     let grp = new Group()
 
     node.children.forEach((e, i) => {
-      pts.push({ x: 0, y: 0 })
       const { el } = initTree(e, level + 1, stage)
+      pts.push({ x: 0, y: 0, uuid: el.uuid })
       grp.addChild(el)
     })
     grp.addChild(shape)
@@ -512,14 +473,13 @@ function initTree(node: Node, level = 0, stage: Stage) {
     let lineShape = new Shape()
     lineShape.type = 'line'
     grp.addChild(lineShape)
-    lineShape.points = [{ x: 0, y: 0 }, ...pts]
+    lineShape.points = [{ x: 0, y: 0, uuid: shape.uuid }, ...pts]
 
     return { el: grp }
   }
-  shape.level = level
   return { el: shape, width: shapeWidth, height: fixedHeight }
 }
-function layout(node: Group | Shape, displayType = DisplayType.normal) {
+function layout(node: Group | Shape) {
   let totalWidth = 0
   let fixedHeight = 40
   let lineShape!: Shape
@@ -546,27 +506,79 @@ function layout(node: Group | Shape, displayType = DisplayType.normal) {
       if (count) {
         if (lineShape) count--
         if (rootShape) count--
-        count && (totalWidth += MARGIN_X)
+        if (count) {
+          totalWidth += MARGIN_X
+        }
       }
       e.x = totalWidth
       e.y = MARGIN_Y
       totalWidth += elWidth
-      pts.push({ x: totalWidth - elWidth / 2, y: MARGIN_Y })
+      // pts存世界坐标
+      if (e instanceof Group) {
+        const childRootShape = e.children.find(
+          item => (item as Shape).type === 'root'
+        ) as Shape
+        const tp = e.local2global(
+          childRootShape.x + (childRootShape as { width: number }).width / 2,
+          childRootShape.y
+        )
+        pts.push({
+          x: tp.x,
+          y: tp.y,
+          uuid: e.uuid,
+        })
+      } else {
+        const tp = e.parent.local2global(
+          e.x + (e as { width: number }).width / 2,
+          e.y
+        )
+        pts.push({ x: tp.x, y: tp.y, uuid: e.uuid })
+      }
     })
     if (rootShape) {
       const { width = 0 } = rootShape
-      rootShape.x = (totalWidth - width) / 2
+      if (lineShape) {
+        // firstChildPoint
+        let fp = rootShape.parent.global2local(pts[0].x, pts[0].y)
+        // lastChildPoint
+        let lp = rootShape.parent.global2local(
+          pts[pts.length - 1].x,
+          pts[pts.length - 1].y
+        )
+        rootShape.x = (lp.x - fp.x) / 2 + fp.x - width / 2
+        rootShape.y = 0
+      } else {
+        const p = rootShape.parent.global2local(
+          (totalWidth - width) / 2,
+          MARGIN_Y
+        )
+        rootShape.x = p.x
+        rootShape.y = 0
+      }
     }
     if (lineShape) {
       const { points = [] } = lineShape
       // 保留points引用
       points.forEach((p, i) => {
         if (i === 0) {
-          p.x = totalWidth / 2
-          p.y = fixedHeight
+          const { width = 0, height = 0 } = rootShape
+          // transform point
+          const center = { x: rootShape.x + width / 2, y: height }
+          const tp = rootShape.parent.local2local(
+            lineShape.parent,
+            center.x,
+            center.y
+          )
+          p.x = tp.x
+          p.y = tp.y
         } else {
-          p.x = pts[i - 1].x
-          p.y = pts[i - 1].y
+          const { uuid } = p
+          const target = pts.find(item => item.uuid === uuid) as IPoint
+          const center = { x: target.x, y: target.y }
+          // transform point
+          let tp = lineShape.parent.global2local(center.x, center.y)
+          p.x = tp.x
+          p.y = tp.y
         }
       })
       drawLine(lineShape)

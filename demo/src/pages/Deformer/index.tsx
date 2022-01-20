@@ -104,7 +104,8 @@ async function init(canvas: HTMLCanvasElement) {
   }
 
   canvas.addEventListener('drop', async (ev: any) => {
-    const list = ev.files
+    const { dataTransfer: dt } = ev
+    const list = [...dt.files]
     const file = list[0]
 
     switch (file.type) {
@@ -115,6 +116,12 @@ async function init(canvas: HTMLCanvasElement) {
         break
       }
     }
+  })
+  ;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    canvas.addEventListener(eventName, ev => {
+      ev.preventDefault()
+      ev.stopPropagation()
+    })
   })
 }
 
@@ -152,7 +159,7 @@ export default function DeformerComponent() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <canvas
-        style={{ backgroundColor: '#edf9ed', height: '80%' }}
+        style={{ backgroundColor: '#aaa', height: '80%' }}
         ref={canvasRef}
       ></canvas>
       <Upload {...props} style={{ height: '60px' }}>

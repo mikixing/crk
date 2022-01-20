@@ -22,7 +22,9 @@ export default function RadialBar() {
     }
   }, [])
 
-  return <canvas ref={canvasRef}></canvas>
+  return (
+    <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }}></canvas>
+  )
 }
 
 function initStage(canvas: HTMLCanvasElement, content: HTMLDivElement) {

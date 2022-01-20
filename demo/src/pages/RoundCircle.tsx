@@ -3,18 +3,29 @@ import React, { useEffect, useRef } from 'react'
 import { Stage, Shape } from '@mikixing/crk'
 import { initCanvas, getRoundCircle } from '../util'
 
+let isNeedUpdate = false
+let id: number
 export default function RoundCircle() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
+    isNeedUpdate = true
     return initStage(canvasRef.current as HTMLCanvasElement)
   }, [])
 
-  return <canvas ref={canvasRef}></canvas>
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(id)
+    }
+  }, [])
+
+  return (
+    <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }}></canvas>
+  )
 }
 
 function initStage(canvas: HTMLCanvasElement) {
-  let willUpdate = true
+  isNeedUpdate = true
   const gui = new GUI()
   const d = {
     x: 400,
@@ -30,17 +41,17 @@ function initStage(canvas: HTMLCanvasElement) {
     yLen: 500,
   }
 
-  gui.add(d, 'startAngle', 0, 360, 1).onChange(() => (willUpdate = true))
-  gui.add(d, 'endAngle', 0, 360, 1).onChange(() => (willUpdate = true))
-  gui.add(d, 'thickness', 10, 500, 1).onChange(() => (willUpdate = true))
-  gui.add(d, 'radius', 0, 500, 1).onChange(() => (willUpdate = true))
-  gui.add(d, 'roundRadius', 0, 200, 1).onChange(() => (willUpdate = true))
+  gui.add(d, 'startAngle', 0, 360, 1).onChange(() => (isNeedUpdate = true))
+  gui.add(d, 'endAngle', 0, 360, 1).onChange(() => (isNeedUpdate = true))
+  gui.add(d, 'thickness', 10, 500, 1).onChange(() => (isNeedUpdate = true))
+  gui.add(d, 'radius', 0, 500, 1).onChange(() => (isNeedUpdate = true))
+  gui.add(d, 'roundRadius', 0, 200, 1).onChange(() => (isNeedUpdate = true))
 
-  gui.add(d, 'anticlockwise').onChange(() => (willUpdate = true))
-  gui.addColor(d, 'fill').onChange(() => (willUpdate = true))
+  gui.add(d, 'anticlockwise').onChange(() => (isNeedUpdate = true))
+  gui.addColor(d, 'fill').onChange(() => (isNeedUpdate = true))
 
   canvas.getContext('2d') as CanvasRenderingContext2D
-  initCanvas(canvas)
+  initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
 
   const stage = new Stage(canvas)
 
@@ -55,7 +66,7 @@ function initStage(canvas: HTMLCanvasElement) {
   }
 
   function update() {
-    if (willUpdate) {
+    if (isNeedUpdate) {
       g.clear()
       getRoundCircle(g, d)
       g.setFillStyle(d.fill)
@@ -63,8 +74,8 @@ function initStage(canvas: HTMLCanvasElement) {
       g.stroke()
 
       stage.update()
-      willUpdate = false
+      isNeedUpdate = false
     }
-    requestAnimationFrame(update)
+    id = requestAnimationFrame(update)
   }
 }

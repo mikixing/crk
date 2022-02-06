@@ -20,6 +20,7 @@ interface IPoint {
   x: number
   y: number
   uuid?: number
+  el?: Shape
 }
 
 class Shape extends BaseShape {
@@ -35,28 +36,94 @@ const data: Node = {
   children: [
     {
       name: '111',
-      // children: [
-      //   { name: 'ccc', children: [] },
-      //   { name: 'ddd', children: [] },
-      //   {
-      //     name: 'eee',
-      //     children: [
-      //       { name: 'xxx', children: [] },
-      //       { name: 'www', children: [] },
-      //       { name: 'yyy', children: [] },
-      //     ],
-      //   },
-      // ],
-    },
-    { name: '222', children: [] },
-    {
-      name: '333',
       children: [
-        { name: 'jjj', children: [] },
-        { name: 'kkk', children: [] },
-        { name: 'lll', children: [] },
+        { name: 'ccc', children: [] },
+        {
+          name: 'ddd',
+          children: [
+            {
+              name: '333',
+              children: [
+                { name: 'jjj', children: [] },
+                { name: 'kkk', children: [] },
+                {
+                  name: 'lll',
+                  // children: [
+                  //   { name: 'xxx', children: [] },
+                  //   { name: 'www', children: [] },
+                  //   { name: 'yyy', children: [] },
+                  //   { name: 'xxx', children: [] },
+                  // ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: 'eee',
+          children: [
+            { name: 'xxx', children: [] },
+            {
+              name: 'www',
+              children: [
+                { name: 'xxx', children: [] },
+                { name: 'www', children: [] },
+                { name: 'yyy', children: [] },
+                { name: 'xxx', children: [] },
+              ],
+            },
+            {
+              name: 'yyy',
+              children: [
+                {
+                  name: '333',
+                  // children: [
+                  //   { name: 'jjj', children: [] },
+                  //   { name: 'kkk', children: [] },
+                  //   {
+                  //     name: 'lll',
+                  //     // children: [
+                  //     //   { name: 'xxx', children: [] },
+                  //     //   { name: 'www', children: [] },
+                  //     //   { name: 'yyy', children: [] },
+                  //     //   { name: 'xxx', children: [] },
+                  //     // ],
+                  //   },
+                  // ],
+                },
+              ],
+            },
+            // { name: 'xxx', children: [] },
+            // { name: 'www', children: [] },
+            // { name: 'yyy', children: [] },
+            // { name: 'xxx', children: [] },
+            // { name: 'www', children: [] },
+            {
+              name: 'yyy',
+              children: [
+                {
+                  name: '333',
+                  // children: [
+                  //   { name: 'jjj', children: [] },
+                  //   { name: 'kkk', children: [] },
+                  //   { name: 'lll', children: [] },
+                  // ],
+                },
+              ],
+            },
+          ],
+        },
       ],
     },
+    // { name: '222', children: [] },
+    // {
+    //   name: '333',
+    //   children: [
+    //     { name: 'jjj', children: [] },
+    //     { name: 'kkk', children: [] },
+    //     { name: 'lll', children: [] },
+    //   ],
+    // },
   ],
 }
 
@@ -197,35 +264,35 @@ function layout(node: Group | Shape) {
           return
         }
         _layout(child, layer, totalHeight + MARGIN_Y)
-        let tp
         let targetShape: Shape
         if (child instanceof Shape) {
-          tp = child.parent.local2global(child.x, child.y)
           targetShape = child
         } else {
           let rootNode = child.children.find(
             item => (item as Shape).type === 'root'
           ) as Shape
-          tp = child.local2global(rootNode.x, rootNode.y)
           targetShape = rootNode
         }
-        // pts放世界坐标
+        // pts放局部坐标
         pts.push({
-          x: tp.x,
-          y: tp.y,
+          x: targetShape.x,
+          y: targetShape.y,
           width: targetShape.width ?? 0,
           uuid: child.uuid,
+          el: targetShape,
         })
       })
       if (rootShape) {
         const { width = 0 } = rootShape
         const lastIndex = pts.length - 1
         // firstChildPoint
-        let fp = rootShape.parent.global2local(pts[0].x, pts[0].y)
+        let fp = pts[0]
+        let lastChild = pts[lastIndex] as { el: Shape; width: number } & IPoint
         // lastChildPoint
-        let lp = rootShape.parent.global2local(
-          pts[lastIndex].x + pts[lastIndex].width,
-          pts[lastIndex].y
+        let lp = lastChild.el.parent.local2local(
+          rootShape.parent,
+          lastChild.x + lastChild.width,
+          lastChild.y
         )
         const x = (lp.x - fp.x) / 2 + fp.x - width / 2
         const lastNode = displayMap[level] as Shape & {
@@ -251,7 +318,10 @@ function layout(node: Group | Shape) {
           if (i === 0) {
             const { width = 0, height = 0 } = rootShape
             // transform point
-            const center = { x: rootShape.x + width / 2, y: height }
+            const center = {
+              x: rootShape.x + width / 2,
+              y: rootShape.y + height,
+            }
             const tp = rootShape.parent.local2local(
               lineShape.parent,
               center.x,
@@ -261,12 +331,17 @@ function layout(node: Group | Shape) {
             p.y = tp.y
           } else {
             const { uuid } = p
-            const target = pts.find(item => item.uuid === uuid) as IPoint & {
+            const target = pts.find(item => item.uuid === uuid) as {
+              el: Shape
               width: number
-            }
+            } & IPoint
             const center = { x: target.x + target.width / 2, y: target.y }
             // transform point
-            let tp = lineShape.parent.global2local(center.x, center.y)
+            let tp = target.el.parent.local2local(
+              lineShape.parent,
+              center.x,
+              center.y
+            )
             p.x = tp.x
             p.y = tp.y
           }

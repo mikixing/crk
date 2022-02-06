@@ -1,5 +1,6 @@
 import React, { useRef, createContext, useContext, useEffect } from 'react'
 import Tree from './pages/Tree'
+import Tree2 from './pages/Tree2'
 import Chord from './pages/Chord'
 import RoundCircle from './pages/RoundCircle'
 import RadialBar from './pages/RadialBar'
@@ -61,6 +62,9 @@ export default function App() {
             <Menu.Item key="8">
               <Link to="/deformer">deformer</Link>
             </Menu.Item>
+            <Menu.Item key="9">
+              <Link to="/tree2">Tree2</Link>
+            </Menu.Item>
             {/* <Menu.Item key="6">
               <Link to="/detect-collision">detect collision</Link>
             </Menu.Item>
@@ -76,6 +80,7 @@ export default function App() {
           <ContentCtx.Provider value={contentRef}>
             <Routes>
               <Route path="*" element={<Tree />} />
+              <Route path="tree2" element={<Tree2 />} />
               <Route path="chord" element={<Chord />}></Route>
               <Route path="round-circle" element={<RoundCircle />}></Route>
               <Route path="radial-bar" element={<RadialBar />}></Route>

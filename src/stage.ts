@@ -14,7 +14,6 @@ import {
   RolloverEvent,
   SyntheticEvent,
 } from './lib/SyntheticEvent'
-import { arrayExpression } from '@babel/types'
 
 enum STATE {
   'IDLE',
@@ -35,6 +34,7 @@ export default class Stage extends Group {
 
   private state: STATE = STATE.IDLE
   private mousemoveDomEvent: MouseEvent = null
+  private hasPressEvent = false
 
   constructor(canvas: HTMLCanvasElement) {
     super()
@@ -71,9 +71,20 @@ export default class Stage extends Group {
     return map
   }
   private trigger(ev: SyntheticEvent) {
+    let cursor = 'default'
     do {
       const { currentTarget } = ev
       currentTarget.emit(ev.type, ev)
+      if (cursor === 'default' && ev.type === 'mouseover') {
+        console.log('---over---')
+        cursor = currentTarget.cursor
+        this.canvas.style.cursor = cursor
+      }
+      if (ev.type === 'mouseout') {
+        console.log('---out---')
+        cursor = 'default'
+        this.canvas.style.cursor = cursor
+      }
       if (!ev.bubble) return
     } while ((ev.currentTarget = ev.currentTarget.parent))
   }
@@ -105,6 +116,7 @@ export default class Stage extends Group {
     const el = this.hit(children, x, y)
     offCtx.restore()
 
+    // 辅助调试
     // offCanvas.width = offCanvas.height = 1000
     // offCanvas.style.width = '500px'
     // offCanvas.style.height = '500px'
@@ -184,6 +196,7 @@ export default class Stage extends Group {
         }
         isInit = false
         if (!ev) return
+        if (this.hasPressEvent) return
         const { x, y } = this.getMouseCoordinateOnCanvas(ev)
         let target = this.getHitItem(x, y)
 
@@ -317,6 +330,7 @@ export default class Stage extends Group {
 
       const target = this.getHitItem(x, y)
       if (target) {
+        this.hasPressEvent = true
         this.trigger(
           new PressdownEvent(ev, {
             x,
@@ -359,6 +373,7 @@ export default class Stage extends Group {
       const { x, y } = this.getMouseCoordinateOnCanvas(ev)
 
       if (pressTarget) {
+        this.hasPressEvent = false
         this.trigger(
           new PressUpEvent(ev, {
             x,

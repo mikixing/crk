@@ -1,4 +1,4 @@
-import { Graphics } from '@mikixing/crk'
+import { Element, Graphics, Group, Matrix } from '@mikixing/crk'
 
 export function initCanvas(
   canvas: HTMLCanvasElement,
@@ -140,6 +140,9 @@ export const rand = (min: number, max: number) => {
   return Math.random() * (max - min) + min
 }
 
+export const clamp = (val: number, min: number, max: number) =>
+  Math.min(Math.max(min, val), max)
+
 export function getFileDataURL(file: File) {
   return new Promise((r, j) => {
     const reader = new FileReader()
@@ -160,3 +163,19 @@ export function getFileText(file: File) {
 
 export { default as getRoundCircle } from './getRoundCircle'
 export { default as loadImage } from './loadImage'
+
+export const setAnchor = (el: Element, x: number, y: number) => {
+  const mat = new Matrix()
+    .translate(el.x, el.y)
+    .skew(el.skewX, el.skewY)
+    .rotate(el.rotation)
+    .scale(el.scaleX, el.scaleY)
+    .translate(-x, -y)
+
+  const tMat = el.getMatrix()
+
+  el.x += tMat.e - mat.e
+  el.y += tMat.f - mat.f
+  el.regX = x
+  el.regY = y
+}

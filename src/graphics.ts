@@ -25,6 +25,24 @@ export interface TextStyle {
   textAlign?: 'left' | 'right' | 'center' | 'start' | 'end'
 }
 
+export interface ILinearGradient {
+  colors: string[]
+  ratios: number[]
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+export interface IRadialGradient {
+  colors: string[]
+  ratios: number[]
+  x0: number
+  y0: number
+  r0: number
+  x1: number
+  y1: number
+  r1: number
+}
 export default class Graphics {
   public actions: ActionItem[] = []
 
@@ -149,6 +167,101 @@ export default class Graphics {
 
   fillText(text: string, x = 0, y = 0, maxWidth?: number) {
     return this.addAction(ActionTypes.fillText, [text, x, y, maxWidth])
+  }
+
+  beginLinearGradientFill(
+    colors: string[],
+    ratios: number[],
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number
+  ) {
+    return this.addAction(ActionTypes.createLinearGradientFill, [
+      colors,
+      ratios,
+      x0,
+      y0,
+      x1,
+      y1,
+    ])
+  }
+  createLinearGradientStroke(
+    colors: string[],
+    ratios: number[],
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number
+  ) {
+    return this.addAction(ActionTypes.createLinearGradientStroke, [
+      colors,
+      ratios,
+      x0,
+      y0,
+      x1,
+      y1,
+    ])
+  }
+  // 渐变
+  createLinearGradient(
+    colors: string[],
+    ratios: number[],
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number
+  ) {
+    return this.addAction(ActionTypes.createLinearGradientFill, [
+      colors,
+      ratios,
+      x0,
+      y0,
+      x1,
+      y1,
+    ])
+  }
+  createRadialGradientFill(
+    colors: string[],
+    ratios: number[],
+    x0: number,
+    y0: number,
+    r0: number,
+    x1: number,
+    y1: number,
+    r1: number
+  ) {
+    return this.addAction(ActionTypes.createRadialGradientFill, [
+      colors,
+      ratios,
+      x0,
+      y0,
+      r0,
+      x1,
+      y1,
+      r1,
+    ])
+  }
+  createRadialGradientStroke(
+    colors: string[],
+    ratios: number[],
+    x0: number,
+    y0: number,
+    r0: number,
+    x1: number,
+    y1: number,
+    r1: number
+  ) {
+    return this.addAction(ActionTypes.createRadialGradientStroke, [
+      colors,
+      ratios,
+      x0,
+      y0,
+      r0,
+      x1,
+      y1,
+      r1,
+    ])
   }
 
   // 状态保存,重置

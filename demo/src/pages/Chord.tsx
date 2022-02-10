@@ -33,7 +33,7 @@ const data = {
   bordered: true,
 }
 
-let isNeedUpdate = true
+let needsUpdate = true
 let id: number
 
 function stdList(list: number[], len: number, val = 0): number[] {
@@ -47,7 +47,7 @@ function stdList(list: number[], len: number, val = 0): number[] {
 
 export default function Diagram() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  isNeedUpdate = true
+  needsUpdate = true
 
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
@@ -106,7 +106,7 @@ export default function Diagram() {
     update()
 
     function update() {
-      if (isNeedUpdate) {
+      if (needsUpdate) {
         stage.update()
       }
       id = requestAnimationFrame(update)

@@ -1,14 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Stage,
   Group,
   Shape as BaseShape,
-  CrkSyntheticEvent,
   Element,
+  CrkSyntheticEvent,
 } from '@mikixing/crk'
-import { initCanvas, setRoundRect } from '../util'
-import { Button } from 'antd'
 import { ease } from '@mikixing/transition'
+import { initCanvas, setAnchor, setRoundRect } from '../../util'
+import data from './data'
 
 interface Node {
   name: string
@@ -31,330 +30,53 @@ class Shape extends BaseShape {
   public points?: { x: number; y: number; uuid: number | string }[]
 }
 
-const data: Node = {
-  name: 'root',
-  children: [
-    {
-      name: '111',
-      children: [
-        { name: 'ccc', children: [] },
-        {
-          name: '2221',
-          children: [
-            {
-              name: '333',
-              children: [
-                { name: 'jjj', children: [] },
-                { name: 'kkk', children: [] },
-                {
-                  name: 'lll',
-                  children: [
-                    { name: 'xxx', children: [] },
-                    { name: 'www', children: [] },
-                    { name: 'yyy', children: [] },
-                    { name: 'xxx', children: [] },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          name: 'eee',
-          children: [
-            { name: 'xxx', children: [] },
-            {
-              name: 'www',
-              children: [
-                { name: 'xxx', children: [] },
-                { name: 'www', children: [] },
-                { name: 'yyy', children: [] },
-                // { name: 'xxx', children: [] },
-              ],
-            },
-            {
-              name: 'yyy',
-              children: [
-                {
-                  name: '333',
-                  children: [
-                    { name: 'jjj', children: [] },
-                    { name: 'kkk', children: [] },
-                    {
-                      name: 'lll',
-                      children: [
-                        { name: 'xxx', children: [] },
-                        { name: 'www', children: [] },
-                        { name: 'yyy', children: [] },
-                        { name: 'xxx', children: [] },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-            { name: 'xxx', children: [] },
-            { name: 'www', children: [] },
-            {
-              name: 'yyy',
-              children: [
-                {
-                  name: '333',
-                  children: [
-                    { name: 'jjj', children: [] },
-                    { name: 'kkk', children: [] },
-                    { name: 'lll', children: [] },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: '222222',
-      children: [
-        {
-          name: 'jjjjjjj-1',
-          // children: [
-          //   {
-          //     name: 'jjjjj1',
-          //     // children: [{ name: 'jjjjjfjhajdhajdfha2', children: [] }],
-          //   },
-          //   // { name: 'jjjjj2', children: [] },
-          // ],
-        },
-        // {
-        //   name: 'jjjjjjj-2',
-        //   // children: [{ name: 'jjjjj1', children: [] }],
-        // },
-      ],
-    },
-    {
-      name: '333',
-      children: [
-        {
-          name: 'mmm',
-          children: [
-            {
-              name: 'mm',
-              children: [
-                { name: 'mmm2', children: [{ name: 'mmm2', children: [] }] },
-              ],
-            },
-            // { name: 'mmm2', children: [] },
-            // { name: 'mmm3', children: [] },
-            // { name: 'mmm4', children: [] },
-            // { name: 'mmm5', children: [] },
-          ],
-        },
-        {
-          name: 'kkk',
-          children: [
-            { name: 'lll', children: [] },
-            {
-              name: 'llllllllll-2',
-              children: [
-                { name: 'lll-1', children: [] },
-                { name: 'lllllllll-2', children: [] },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: '444',
-      children: [
-        {
-          name: 'xxx',
-          children: [
-            {
-              name: 'xxx1',
-              children: [
-                {
-                  name: 'xxx2',
-                  children: [
-                    { name: 'xxx2-1', children: [] },
-                    { name: 'xxx2-2', children: [] },
-                  ],
-                },
-                { name: 'xxx3', children: [] },
-              ],
-            },
-          ],
-        },
-        {
-          name: 'yyy',
-          children: [
-            { name: 'yyy1', children: [] },
-            { name: 'yyy2', children: [] },
-            // { name: 'yyy3', children: [] },
-          ],
-        },
-        // { name: 'zzz', children: [] },
-        // { name: 'xxx', children: [] },
-        // { name: 'yyy', children: [] },
-        // { name: 'zzz', children: [] },
-      ],
-    },
-  ],
-}
-
 const MARGIN_X = 20 // 子节点之间的水平衡距离
-const MARGIN_Y = 120 // 父子节点的垂直距离
+const MARGIN_Y = 400 // 父子节点的垂直距离
 
-let isNeedUpdate = true
-let stage: Stage
+let needsUpdate = true
 let id: number
 
-function update(stage: Stage) {
-  if (isNeedUpdate) {
-    stage.update()
-    isNeedUpdate = false
+let dataMap = {} as Record<
+  number,
+  {
+    src: Record<string, number> | Element
+    dst: Record<string, number | Function>
   }
-  id = requestAnimationFrame(() => update(stage))
-}
+>
+let canvas: HTMLCanvasElement
+let stage: Stage
+let nodeTree: Group | Shape
+const centerConfig = [0, 0, 0, 0]
 
-export default function Tree() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [dataMap] = useState<Record<string, any>>({})
+export default function setView(canvasDom: HTMLCanvasElement) {
+  canvas = canvasDom
+  initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
+  ;(window as any).stage = stage = new Stage(canvas)
+  stage.mouseMoveOutside = true
+  // @ts-ignore
+  // window.stage = stage
+  start(stage)
 
-  const reset = useCallback(() => {
-    isNeedUpdate = true
-    Object.keys(dataMap).forEach(id => {
-      const { src, dst } = dataMap[id]
-      ease(src, dst)
-    })
-  }, [dataMap])
-
-  const doResort = useCallback(function doResort(tree: Group | Shape) {
-    if (tree instanceof Shape) return
-
-    let list = (tree as Group).children
-    const arr1 = list.filter(
-      item =>
-        (item as Shape)?.type === 'line' || (item as Shape)?.type === 'root'
-    )
-    const arr2 = list.filter(
-      item =>
-        (item as Shape)?.type !== 'line' && (item as Shape)?.type !== 'root'
-    )
-    let arr = arr2
-    if (arr2.length === 1 && arr2[0] instanceof Group) {
-      arr = arr2[0].children
-    }
-
-    arr.sort((a: Group | Shape, b: Group | Shape) => {
-      doResort(a)
-      doResort(b)
-      return Math.random() - 0.5
-    })
-    list.splice(0)
-    list.push(...arr1, ...arr2)
-  }, [])
-
-  const resort = useCallback((tree: Group) => {
-    let srcMap = {} as Record<string, { x: number; y: number }>
-    walk(tree, (item: Element) => {
-      let src: Record<string, number>
-      srcMap[item.uuid] = src = { x: item.x, y: item.y }
-      if ((item as Shape).type === 'line') {
-        const { points = [] } = item as Shape
-        points.forEach((p, i) => {
-          src['x' + i] = p.x
-          src['y' + i] = p.y
-        })
-      }
-    })
-
-    doResort(tree)
-    walk(tree, (item: Element) => {
-      item.x = 0
-      item.y = 0
-    })
-    layout(tree)
-    isNeedUpdate = true
-    let dstMap = {} as Record<string, Shape | Group>
-    walk(tree, (item: Element) => {
-      let dst: Record<string, any>
-      dstMap[item.uuid] = dst = item as Shape | Group
-      if ((item as Shape).type === 'line') {
-        const { points = [] } = item as Shape
-        points.forEach((p, index) => {
-          dst['x' + index] = p.x
-          dst['y' + index] = p.y
-        })
-      }
-    })
-
-    Object.keys(srcMap).forEach(key => {
-      const src = srcMap[key]
-      const dst = dstMap[key]
-      if ((dst as Shape)?.type === 'line') {
-        // @ts-ignore
-        dst.onUpdate = (obj: Record<string, number>) => {
-          isNeedUpdate = true
-          const pts = (dst as Shape).points as { x: number; y: number }[]
-          Object.keys(obj).forEach(k => {
-            const key = k.slice(0, 1) as 'x' | 'y'
-            const index = +k.slice(1)
-
-            if (pts[index]) {
-              pts[index][key] = obj[k] as number
-            } else {
-              pts[index] = {} as { x: number; y: number }
-              pts[index][key] = obj[k] as number
-            }
-          })
-          drawLine(dst as Shape)
-        }
-      } else {
-        // @ts-ignore
-        dst.onUpdate = (obj: { x: number; y: number }) => {
-          dst.x = obj.x
-          dst.y = obj.y
-          isNeedUpdate = true
-        }
-      }
-      ease(src, dst)
-    })
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(id)
-    }
-  }, [])
-
-  useEffect(() => {
-    isNeedUpdate = true
-
-    const canvas = canvasRef.current as HTMLCanvasElement
-    initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
-    canvas.style.width = '100%'
-    canvas.style.height = '100%'
-
-    stage = new Stage(canvas)
-    // stage.x = 100
-    // stage.y = 50
-
-    const { el: rootNode } = initTree(data, 0, stage)
+  function start(stage: Stage) {
+    const { el: rootNode } = initTree(stage, data, 0)
+    ;(window as any).root = nodeTree = rootNode
+    ;(stage as Stage).addChild(rootNode)
+    ;(stage as Stage).enableMouseOver(10)
     layout(rootNode)
-    stage.addChild(rootNode)
-    stage.enableMouseOver(10)
+    adjustPosition({ padding: centerConfig })
 
     window.onresize = ev => {
       initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
       canvas.style.width = '100%'
       canvas.style.height = '100%'
       layout(rootNode)
-      isNeedUpdate = true
+      adjustPosition({ padding: centerConfig })
+      needsUpdate = true
     }
-
-    stage.on('pressdown', (ev: CrkSyntheticEvent) => {
-      isNeedUpdate = true
+    ;(stage as Stage).on('pressdown', (ev: CrkSyntheticEvent) => {
+      needsUpdate = true
       const { x, y } = ev
       const target = ev.target as Shape
       const { parent } = target
@@ -367,10 +89,10 @@ export default function Tree() {
       let pressmove: (ev: CrkSyntheticEvent) => void,
         pressup: (ev: CrkSyntheticEvent) => void
       const isLeaf = target.type !== 'root'
-      stage.on(
+      ;(stage as Stage).on(
         'pressmove',
         (pressmove = (ev: CrkSyntheticEvent) => {
-          isNeedUpdate = true
+          needsUpdate = true
           const { x, y } = ev
           const tmp = mat.transformPoint(x, y)
           const dx = tmp.x - bx
@@ -447,7 +169,10 @@ export default function Tree() {
                   (root.width ?? 0) / 2,
                   root.height ?? 0
                 )
-                const points = lineShape.points as { x: number; y: number }[]
+                const points = lineShape.points as {
+                  x: number
+                  y: number
+                }[]
                 points[0].x = p1.x
                 points[0].y = p1.y
                 let counter = 0
@@ -474,12 +199,12 @@ export default function Tree() {
           }
         })
       )
-      stage.on(
+      ;(stage as Stage).on(
         'pressup',
         (pressup = (ev: CrkSyntheticEvent) => {
-          isNeedUpdate = true
-          stage.removeListener('pressmove', pressmove)
-          stage.removeListener('pressup', pressup)
+          needsUpdate = true
+          ;(stage as Stage).removeListener('pressmove', pressmove)
+          ;(stage as Stage).removeListener('pressup', pressup)
         })
       )
     })
@@ -514,7 +239,7 @@ export default function Tree() {
         })
 
         dst.onUpdate = (obj: Record<string, number>) => {
-          isNeedUpdate = true
+          needsUpdate = true
           const pts = (el as Shape).points as { x: number; y: number }[]
           Object.keys(obj).forEach(k => {
             const key = k.slice(0, 1) as 'x' | 'y'
@@ -543,94 +268,92 @@ export default function Tree() {
         }
       }
     })
-    update(stage)
-  }, [])
+    update(stage as Stage)
 
-  return (
-    <>
-      <canvas
-        ref={canvasRef}
-        style={{ width: '100%', height: '100%' }}
-      ></canvas>
-      <div
-        style={{
-          position: 'fixed',
-          right: 0,
-          top: 0,
-          padding: 10,
-          background: '#fff',
-          // border: '1px solid #999',
-        }}
-      >
-        <Button size="small" onClick={() => reset()}>
-          reset
-        </Button>
-        <br />
-        <br />
-        <Button
-          size="small"
-          onClick={() => resort((stage as Group).children[0] as Group)}
-        >
-          resort
-        </Button>
-      </div>
-    </>
-  )
+    function getTextMarics(stage: Stage, text: string) {
+      return stage.ctx.measureText(text)
+    }
+
+    function initTree(stage: Stage, node: Node, level: number) {
+      const color = `hsl(${((level / 5) * 360) | 0}, 60%, 50%)`
+
+      let shape = new Shape()
+      let g = shape.graphics
+      let textMetrics = getTextMarics(stage, node.name)
+      let shapeWidth = textMetrics.width * 2 + 20
+      let fixedHeight = 40
+      const fontSize = 20
+      shape.cursor = 'pointer'
+      shape.width = shapeWidth
+      shape.height = fixedHeight
+      setRoundRect(g, 0, 0, shapeWidth, fixedHeight, 10)
+      g.setStrokeStyle({ color: '#555', lineWidth: 1 })
+        .setFillStyle(color)
+        .fill()
+        .setFillStyle('#fff')
+        .setTextStyle({ font: `${fontSize}px arial`, textAlign: 'center' })
+        .fillText(node.name, shapeWidth / 2, 25)
+        .stroke()
+      shape.text = node.name
+      const pts = [] as IPoint[]
+      if (node.children?.length) {
+        let grp = new Group()
+
+        node.children.forEach((e, i) => {
+          const { el } = initTree(stage, e, level + 1)
+          pts.push({ uuid: el.uuid })
+          grp.addChild(el)
+        })
+        grp.addChild(shape)
+        shape.type = 'root'
+        shape.cursor = 'move'
+
+        let lineShape = new Shape()
+        lineShape.ignoreEvent = true
+        lineShape.type = 'line'
+        grp.addChild(lineShape)
+        lineShape.points = [
+          { uuid: shape.uuid, x: 0, y: 0 },
+          ...pts.map(item => {
+            return { x: 0, y: 0, ...item }
+          }),
+        ]
+
+        return { el: grp }
+      }
+      return { el: shape, width: shapeWidth, height: fixedHeight }
+    }
+    canvas.addEventListener('wheel', ev => {
+      console.log('wheel', ev.deltaX, ev.deltaY)
+      if (ev.deltaMode === ev.DOM_DELTA_PIXEL) {
+        if (ev.ctrlKey || ev.metaKey) {
+          // zoom
+          let { x, y } = stage.global2local(ev.clientX - 200, ev.clientY)
+          setAnchor(stage, x, y)
+
+          const ss = stage.scale * Math.pow(0.98, ev.deltaY)
+          // const maxScale = Infinity
+          // const minScale = Infinity
+          // ss = Math.max(Math.min(ss, maxScale), minScale)
+          stage.scale = ss
+          console.log(ss, ev.clientX, ev.clientY, x, y)
+        } else {
+          stage.x += -ev.deltaX
+          stage.y += -ev.deltaY
+        }
+        needsUpdate = true
+        ev.preventDefault()
+      }
+    })
+  }
+  return () => {
+    cancelAnimationFrame(id)
+  }
 }
 
 function walk(el: Element, fn: (el: Element) => void) {
   fn(el)
   ;(el as Group).children?.forEach(e => walk(e, fn))
-}
-
-function getTextMarics(text: string, stage: Stage) {
-  return stage.ctx.measureText(text)
-}
-
-function initTree(node: Node, level = 0, stage: Stage) {
-  const color = `hsl(${((level / 5) * 360) | 0}, 60%, 50%)`
-
-  let shape = new Shape()
-  let g = shape.graphics
-  let textMetrics = getTextMarics(node.name, stage)
-  let shapeWidth = textMetrics.width * 2 + 20
-  let fixedHeight = 40
-  shape.width = shapeWidth
-  shape.height = fixedHeight
-  setRoundRect(g, 0, 0, shapeWidth, fixedHeight, 10)
-  g.setStrokeStyle({ color: '#555', lineWidth: 1 })
-    .setFillStyle(color)
-    .fill()
-    .setFillStyle('#fff')
-    .setTextStyle({ font: '20px arial' })
-    .fillText(node.name, 10, 25)
-    .stroke()
-  shape.text = node.name
-  const pts = [] as IPoint[]
-  if (node.children?.length) {
-    let grp = new Group()
-
-    node.children.forEach((e, i) => {
-      const { el } = initTree(e, level + 1, stage)
-      pts.push({ uuid: el.uuid })
-      grp.addChild(el)
-    })
-    grp.addChild(shape)
-    shape.type = 'root'
-
-    let lineShape = new Shape()
-    lineShape.type = 'line'
-    grp.addChild(lineShape)
-    lineShape.points = [
-      { uuid: shape.uuid, x: 0, y: 0 },
-      ...pts.map(item => {
-        return { x: 0, y: 0, ...item }
-      }),
-    ]
-
-    return { el: grp }
-  }
-  return { el: shape, width: shapeWidth, height: fixedHeight }
 }
 function layout(node: Group | Shape) {
   let level = 0
@@ -705,7 +428,7 @@ function layout(node: Group | Shape) {
         })
       })
       if (data.length) {
-        setPosition(data, rootShape.parent)
+        setPosition(data, rootShape.parent || rootShape)
       }
       if (rootShape) {
         const { width = 0 } = rootShape
@@ -742,7 +465,12 @@ function layout(node: Group | Shape) {
         displayMap[level] = { left: rootShape, right: rootShape, data }
 
         // 当子元素宽度不足时,子树根节点可能超出边界,需要重新适配位置
-        const coorX = rootShape.parent.local2global(rootShape.x, rootShape.y).x
+        // const coorX = rootShape.parent.local2global(rootShape.x, rootShape.y).x
+        const coorX = rootShape.parent.local2local(
+          stage,
+          rootShape.x,
+          rootShape.y
+        ).x
         if (coorX < 0) {
           rootShape.parent.x += Math.abs(coorX)
         }
@@ -836,7 +564,6 @@ function setPosition(list: any, subroot: Group, type = 0) {
       const difference = MARGIN_X - dx
       if (cil instanceof Shape) {
         if (cil.type === 'root') {
-          if (cil.text === '444') debugger
           const { parent } = cil
           if (difference > 0) {
             if (type) {
@@ -870,4 +597,277 @@ function setPosition(list: any, subroot: Group, type = 0) {
       }
     })
   }
+}
+
+function getBoundingBox(el: Element) {
+  // @ts-ignore
+  // window.aaa = getBoundingBox
+  const result = { left: 0, right: 0, top: 0, bottom: 0 }
+  doGetBoundingBox(el)
+  return result
+
+  function doGetBoundingBox(el: Element) {
+    if (el instanceof Group) {
+      ;(el as Group).children.forEach(child => {
+        doGetBoundingBox(child)
+      })
+    } else {
+      // const coor1 = el.parent?.local2global(el.x, el.y) as {
+      //   x: number
+      //   y: number
+      // }
+      // const coor2 = el.parent?.local2global(
+      //   el.x + ((el as Shape)?.width ?? 0),
+      //   el.y + ((el as Shape)?.height ?? 0)
+      // ) as { x: number; y: number }
+
+      const coor1 = el.parent?.local2local(nodeTree, el.x, el.y) as {
+        x: number
+        y: number
+      }
+      const coor2 = el.parent?.local2local(
+        nodeTree,
+        el.x + ((el as Shape)?.width ?? 0),
+        el.y + ((el as Shape)?.height ?? 0)
+      ) as { x: number; y: number }
+      Object.assign(
+        result,
+        addBoundingBox(result, {
+          left: coor1.x,
+          right: coor2.x,
+          top: coor1.y,
+          bottom: coor2.y,
+        })
+      )
+    }
+  }
+  function addBoundingBox(
+    a: { left: number; right: number; top: number; bottom: number },
+    b: { left: number; right: number; top: number; bottom: number }
+  ) {
+    return {
+      left: Math.min(a.left, b.left),
+      right: Math.max(a.right, b.right),
+      top: Math.min(a.top, b.top),
+      bottom: Math.max(a.bottom, b.bottom),
+    }
+  }
+}
+function getBackgroundData(
+  sw: number,
+  sh: number,
+  dw: number,
+  dh: number,
+  isContain = true
+) {
+  const sr = sw / sh
+  const dr = dw / dh
+
+  let scale
+  if (isContain) {
+    scale = sr > dr ? dw / sw : dh / sh
+  } else {
+    scale = sr > dr ? dh / sh : dw / sw
+  }
+
+  return {
+    scale,
+    x: (dw - sw * scale) / 2,
+    y: (dh - sh * scale) / 2,
+  }
+}
+var boxShape = new Shape()
+function adjustPosition(
+  opt = {} as {
+    padding?: number[] | number
+    paddingLeft?: number
+    paddingTop?: number
+    paddingRight?: number
+    paddingBottom?: number
+  }
+) {
+  // const src = { x: nodeTree.x, y: nodeTree.y }
+  // stage.scale = 1
+  // stage.x = 0
+  // stage.y = 0
+
+  // nodeTree.scale = 1
+  const boundingBox = getBoundingBox(nodeTree)
+  // @ts-ignore
+  window.boundingBox = boundingBox
+  boxShape.graphics
+    .clear()
+    .setStrokeStyle({ lineWidth: 1, color: 'red' })
+    .moveTo(boundingBox.left, boundingBox.top)
+    .lineTo(boundingBox.right, boundingBox.top)
+    .lineTo(boundingBox.right, boundingBox.bottom)
+    .lineTo(boundingBox.left, boundingBox.bottom)
+    .closePath()
+    .stroke()
+  ;(nodeTree as Group).addChild(boxShape)
+
+  let { padding, paddingLeft, paddingTop, paddingRight, paddingBottom } = opt
+
+  if (!Array.isArray(padding)) {
+    padding = Array(4).fill(typeof padding === 'number' ? padding : 0)
+  }
+
+  paddingTop = paddingTop ?? padding[0] ?? 0
+  paddingRight = paddingRight ?? padding[1] ?? 0
+  paddingBottom = paddingBottom ?? padding[2] ?? 0
+  paddingLeft = paddingLeft ?? padding[3] ?? 0
+
+  const sw = boundingBox.right - boundingBox.left // source width
+  const sh = boundingBox.bottom - boundingBox.top // source height
+  const dw = canvas.offsetWidth - paddingLeft - paddingRight // destination width
+  const dh = canvas.offsetHeight - paddingTop - paddingBottom // destination height
+
+  const { scale, x, y } = getBackgroundData(sw, sh, dw, dh)
+
+  console.log(sw, sh, dw, dh, scale, x, y, '--------')
+
+  // nodeTree.scale = scale > 1 ? 1 : scale
+  // nodeTree.x = x * scale
+  // nodeTree.y = y * scale
+  // const dst = {
+  //   x: x + paddingLeft,
+  //   y: y + paddingTop,
+  //   onUpdate: (obj: Record<string, number>) => {
+  //     needsUpdate = true
+  //     nodeTree.x = obj.x
+  //     nodeTree.y = obj.y
+  //   },
+  // }
+  // ease(src, dst)
+
+  if ((window as any).abc) {
+    debugger
+  }
+
+  ease(nodeTree, {
+    x: x + paddingLeft,
+    y: y + paddingTop,
+
+    scale,
+    onUpdate: () => (needsUpdate = true),
+  })
+
+  ease(stage, {
+    x: 0,
+    y: 0,
+    scale: 1,
+    regX: 0,
+    regY: 0,
+    onUpdate: () => (needsUpdate = true),
+  })
+}
+function update(stage: Stage) {
+  if (needsUpdate) {
+    stage.update()
+    needsUpdate = false
+  }
+  id = requestAnimationFrame(() => update(stage))
+}
+
+export function doResort() {
+  let srcMap = {} as Record<string, { x: number; y: number }>
+  walk(nodeTree, (item: Element) => {
+    let src: Record<string, number>
+    srcMap[item.uuid] = src = { x: item.x, y: item.y }
+    if ((item as Shape).type === 'line') {
+      const { points = [] } = item as Shape
+      points.forEach((p, i) => {
+        src['x' + i] = p.x
+        src['y' + i] = p.y
+      })
+    }
+  })
+  doResort(nodeTree)
+  walk(nodeTree, (item: Element) => {
+    item.x = 0
+    item.y = 0
+  })
+  layout(nodeTree)
+  adjustPosition({ padding: centerConfig })
+  needsUpdate = true
+  let dstMap = {} as Record<string, Shape | Group>
+  walk(nodeTree, (item: Element) => {
+    let dst: Record<string, any>
+    dstMap[item.uuid] = dst = item as Shape | Group
+    if ((item as Shape).type === 'line') {
+      const { points = [] } = item as Shape
+      points.forEach((p, index) => {
+        dst['x' + index] = p.x
+        dst['y' + index] = p.y
+      })
+    }
+  })
+
+  Object.keys(srcMap).forEach(key => {
+    const src = srcMap[key]
+    const dst = dstMap[key]
+    if ((dst as Shape)?.type === 'line') {
+      // @ts-ignore
+      dst.onUpdate = (obj: Record<string, number>) => {
+        needsUpdate = true
+        const pts = (dst as Shape).points as { x: number; y: number }[]
+        Object.keys(obj).forEach(k => {
+          const key = k.slice(0, 1) as 'x' | 'y'
+          const index = +k.slice(1)
+
+          if (pts[index]) {
+            pts[index][key] = obj[k] as number
+          } else {
+            pts[index] = {} as { x: number; y: number }
+            pts[index][key] = obj[k] as number
+          }
+        })
+        drawLine(dst as Shape)
+      }
+    } else {
+      // @ts-ignore
+      dst.onUpdate = (obj: { x: number; y: number }) => {
+        dst.x = obj.x
+        dst.y = obj.y
+        needsUpdate = true
+      }
+    }
+    ease(src, dst)
+  })
+
+  function doResort(tree: Group | Shape) {
+    if (tree instanceof Shape) return
+
+    let list = (tree as Group).children
+    const arr1 = list.filter(
+      item =>
+        (item as Shape)?.type === 'line' || (item as Shape)?.type === 'root'
+    )
+    const arr2 = list.filter(
+      item =>
+        (item as Shape)?.type !== 'line' && (item as Shape)?.type !== 'root'
+    )
+    let arr = arr2
+    if (arr2.length === 1 && arr2[0] instanceof Group) {
+      arr = arr2[0].children
+    }
+
+    arr.sort((a: Group | Shape, b: Group | Shape) => {
+      doResort(a)
+      doResort(b)
+      // return Math.random() - 0.5
+      return -1
+    })
+    list.splice(0)
+    list.push(...arr1, ...arr2)
+  }
+}
+
+export function doReset() {
+  needsUpdate = true
+  Object.keys(dataMap).forEach(id => {
+    const { src, dst } = dataMap[id as any]
+    ease(src, dst)
+  })
+  adjustPosition({ padding: centerConfig })
 }

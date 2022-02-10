@@ -1,6 +1,6 @@
 import React, { useRef, createContext, useContext, useEffect } from 'react'
 import Tree from './pages/Tree'
-import Tree2 from './pages/Tree2'
+import Tree2 from './pages/Tree2/index'
 import Chord from './pages/Chord'
 import RoundCircle from './pages/RoundCircle'
 import RadialBar from './pages/RadialBar'
@@ -29,6 +29,10 @@ export default function App() {
     window.addEventListener('resize', ev => {
       console.log(contentRef.current?.offsetWidth)
     })
+
+    window.addEventListener('gesturestart', e => e.preventDefault())
+    window.addEventListener('gesturechange', e => e.preventDefault())
+    window.addEventListener('gestureend', e => e.preventDefault())
   })
 
   return (

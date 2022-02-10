@@ -1,13 +1,18 @@
 import Element from './element'
 import Group from './group'
 import Stage from './stage'
-import Graphics, { StrokeStyle, TextStyle } from './graphics'
+import Graphics, {
+  StrokeStyle,
+  TextStyle,
+  ILinearGradient,
+  IRadialGradient,
+} from './graphics'
 import { ActionTypes, ActionKeyMap, NativeMethodTypes } from './constant'
 
 export default class Shape extends Element {
   public graphics: Graphics
   public parent: Group | Stage = null
-
+  private gradientFill: any
   constructor(g?: Graphics) {
     super()
     this.graphics = g || new Graphics()
@@ -81,6 +86,50 @@ export default class Shape extends Element {
 
           break
         }
+
+        case ActionTypes.createLinearGradientFill: {
+          const { colors, ratios, x0, y0, x1, y1 } = args as ILinearGradient
+          const gradient = ctx.createLinearGradient(x0, y0, x1, y1)
+          ratios.forEach((ratio, index) => {
+            gradient.addColorStop(ratio, colors[index])
+          })
+          ctx.fillStyle = gradient
+
+          break
+        }
+        case ActionTypes.createLinearGradientStroke: {
+          const { colors, ratios, x0, y0, x1, y1 } = args as ILinearGradient
+          const gradient = ctx.createLinearGradient(x0, y0, x1, y1)
+          ratios.forEach((ratio, index) => {
+            gradient.addColorStop(ratio, colors[index])
+          })
+          ctx.strokeStyle = gradient
+
+          break
+        }
+        case ActionTypes.createLinearGradientFill: {
+          const { colors, ratios, x0, y0, r0, x1, y1, r1 } =
+            args as IRadialGradient
+          const gradient = ctx.createRadialGradient(x0, y0, r0, x1, y1, r1)
+          ratios.forEach((ratio, index) => {
+            gradient.addColorStop(ratio, colors[index])
+          })
+          ctx.fillStyle = gradient
+
+          break
+        }
+        case ActionTypes.createRadialGradientStroke: {
+          const { colors, ratios, x0, y0, r0, x1, y1, r1 } =
+            args as IRadialGradient
+          const gradient = ctx.createRadialGradient(x0, y0, r0, x1, y1, r1)
+          ratios.forEach((ratio, index) => {
+            gradient.addColorStop(ratio, colors[index])
+          })
+          ctx.strokeStyle = gradient
+
+          break
+        }
+
         case ActionTypes.save: {
           statusCount++
           ctx.save()

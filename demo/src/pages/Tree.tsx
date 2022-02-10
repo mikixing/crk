@@ -63,14 +63,14 @@ const data: Node = {
 const MARGIN_X = 60 // 子节点之间的水平衡距离
 const MARGIN_Y = 120 // 父子节点的垂直距离
 
-let isNeedUpdate = true
+let needsUpdate = true
 let stage: Stage
 let id: number
 
 function update(stage: Stage) {
-  if (isNeedUpdate) {
+  if (needsUpdate) {
     stage.update()
-    isNeedUpdate = false
+    needsUpdate = false
   }
   id = requestAnimationFrame(() => update(stage))
 }
@@ -80,7 +80,7 @@ export default function Tree() {
   const [dataMap] = useState<Record<string, any>>({})
 
   const reset = useCallback(() => {
-    isNeedUpdate = true
+    needsUpdate = true
     Object.keys(dataMap).forEach(id => {
       const { src, dst } = dataMap[id]
       ease(src, dst)
@@ -147,7 +147,7 @@ export default function Tree() {
       if ((dst as Shape)?.type === 'line') {
         // @ts-ignore
         dst.onUpdate = (obj: Record<string, number>) => {
-          isNeedUpdate = true
+          needsUpdate = true
           const pts = (dst as Shape).points as IPoint[]
           Object.keys(obj).forEach(k => {
             const key = k.slice(0, 1) as 'x' | 'y'
@@ -167,7 +167,7 @@ export default function Tree() {
         dst.onUpdate = (obj: IPoint) => {
           dst.x = obj.x
           dst.y = obj.y
-          isNeedUpdate = true
+          needsUpdate = true
         }
       }
       ease(src, dst)
@@ -181,7 +181,7 @@ export default function Tree() {
   }, [])
 
   useEffect(() => {
-    isNeedUpdate = true
+    needsUpdate = true
 
     const canvas = canvasRef.current as HTMLCanvasElement
     initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
@@ -202,11 +202,11 @@ export default function Tree() {
       canvas.style.width = '100%'
       canvas.style.height = '100%'
       layout(rootNode)
-      isNeedUpdate = true
+      needsUpdate = true
     }
 
     stage.on('pressdown', (ev: CrkSyntheticEvent) => {
-      isNeedUpdate = true
+      needsUpdate = true
       const { x, y } = ev
       const target = ev.target as Shape
       const { parent } = target
@@ -222,7 +222,7 @@ export default function Tree() {
       stage.on(
         'pressmove',
         (pressmove = (ev: CrkSyntheticEvent) => {
-          isNeedUpdate = true
+          needsUpdate = true
           const { x, y } = ev
           const tmp = mat.transformPoint(x, y)
           const dx = tmp.x - bx
@@ -329,7 +329,7 @@ export default function Tree() {
       stage.on(
         'pressup',
         (pressup = (ev: CrkSyntheticEvent) => {
-          isNeedUpdate = true
+          needsUpdate = true
           stage.removeListener('pressmove', pressmove)
           stage.removeListener('pressup', pressup)
         })
@@ -366,7 +366,7 @@ export default function Tree() {
         })
 
         dst.onUpdate = (obj: Record<string, number>) => {
-          isNeedUpdate = true
+          needsUpdate = true
           const pts = (el as Shape).points as IPoint[]
           Object.keys(obj).forEach(k => {
             const key = k.slice(0, 1) as 'x' | 'y'

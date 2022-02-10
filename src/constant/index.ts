@@ -17,6 +17,10 @@ export enum ActionTypes {
   fillText,
   drawImage,
   rect,
+  createLinearGradientFill,
+  createLinearGradientStroke,
+  createRadialGradientFill,
+  createRadialGradientStroke,
   save,
   restore,
 }
@@ -24,7 +28,14 @@ export enum ActionTypes {
 export type ActionKeys = keyof typeof ActionTypes
 export type NativeMethodTypes = Exclude<
   ActionKeys,
-  'setStrokeStyle' | 'setStrokeDash' | 'setFillStyle' | 'setTextStyle'
+  | 'setStrokeStyle'
+  | 'setStrokeDash'
+  | 'setFillStyle'
+  | 'setTextStyle'
+  | 'createLinearGradientFill'
+  | 'createLinearGradientStroke'
+  | 'createRadialGradientFill'
+  | 'createRadialGradientStroke'
 >
 
 export const ActionKeyMap = Object.keys(ActionTypes).reduce(
@@ -35,3 +46,41 @@ export const ActionKeyMap = Object.keys(ActionTypes).reduce(
   },
   {} as { [x: number]: ActionKeys }
 )
+
+export type TCursor =
+  | 'auto'
+  | 'default'
+  | 'none'
+  | 'context-menu'
+  | 'help'
+  | 'pointer'
+  | 'progress'
+  | 'wait'
+  | 'cell'
+  | 'crosshair'
+  | 'text'
+  | 'vertical-text'
+  | 'alias'
+  | 'copy'
+  | 'move'
+  | 'no-drop'
+  | 'not-allowed'
+  | 'grab'
+  | 'grabbing'
+  | 'all-scroll'
+  | 'col-resize'
+  | 'row-resize'
+  | 'n-resize'
+  | 'e-resize'
+  | 's-resize'
+  | 'w-resize'
+  | 'ne-resize'
+  | 'nw-resize'
+  | 'se-resize'
+  | 'sw-resize'
+  | 'ew-resize'
+  | 'ns-resize'
+  | 'nesw-resize'
+  | 'nwse-resize'
+  | 'zoom-in'
+  | 'zoom-out'

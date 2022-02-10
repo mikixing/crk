@@ -4,14 +4,14 @@ import { linear, easeIn, easeOut, ease, collision } from '@mikixing/transition'
 import { initCanvas, getRoundCircle } from '../util'
 import { useContentRef } from '../App'
 
-let isNeedUpdate = false
+let needsUpdate = false
 let id: number
 export default function RadialBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const contentRef = useContentRef()
 
   useEffect(() => {
-    isNeedUpdate = true
+    needsUpdate = true
     const dom = contentRef?.current as any as HTMLDivElement
     return initStage(canvasRef.current as HTMLCanvasElement, dom)
   }, [])
@@ -134,7 +134,7 @@ function initStage(canvas: HTMLCanvasElement, content: HTMLDivElement) {
 
   update()
   function update() {
-    if (isNeedUpdate) {
+    if (needsUpdate) {
       stage.update()
     }
     requestAnimationFrame(update)

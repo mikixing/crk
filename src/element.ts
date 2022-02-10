@@ -2,6 +2,7 @@ import { EventEmitter } from 'events'
 import { Stage } from '.'
 import Matrix, { deg2rad } from './lib/Matrix'
 import { SyntheticEvent } from './lib/SyntheticEvent'
+import { TCursor } from './constant/index'
 
 export interface Transform {
   x: number
@@ -53,6 +54,7 @@ export default abstract class Element
   public parent: Element | null
   public ignoreEvent = false
   public rect?: { x: number; y: number; width: number; height: number }
+  public cursor: TCursor = 'default'
 
   private _scaleX: number
   private _scaleY: number
@@ -173,7 +175,8 @@ export default abstract class Element
 
   public global2local(x: number, y: number) {
     let mat = this.getWorldMatrix().invert()
-    return mat.transformPoint(x, y)
+    let res = mat.transformPoint(x, y)
+    return res
   }
 
   public local2local(el: Element, x: number, y: number) {

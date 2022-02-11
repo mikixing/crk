@@ -1,15 +1,9 @@
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Button } from 'antd'
-import setView, { doReset, doResort } from './view'
+import setView, { reset, resort } from './view'
 
 export default function Tree() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  const reset = useCallback(() => {
-    doReset()
-  }, [])
-
-  const resort = useCallback(doResort, [])
 
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
@@ -32,7 +26,7 @@ export default function Tree() {
           // border: '1px solid #999',
         }}
       >
-        <Button size="small" onClick={() => reset()}>
+        <Button size="small" onClick={reset}>
           reset
         </Button>
         <br />

@@ -7,7 +7,7 @@ import {
 } from '@mikixing/crk'
 import { ease } from '@mikixing/transition'
 import { initCanvas, setAnchor, setRoundRect } from '../../util'
-import data from './data'
+import data from './data2'
 
 interface Node {
   name: string
@@ -45,309 +45,300 @@ let dataMap = {} as Record<
 >
 let canvas: HTMLCanvasElement
 let stage: Stage
-let nodeTree: Group | Shape
+let root: Group | Shape
 const centerConfig = [0, 0, 0, 0]
 
 export default function setView(canvasDom: HTMLCanvasElement) {
   canvas = canvasDom
-  initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
-  canvas.style.width = '100%'
-  canvas.style.height = '100%'
   ;(window as any).stage = stage = new Stage(canvas)
   stage.mouseMoveOutside = true
   // @ts-ignore
   // window.stage = stage
-  start(stage)
+  const { el: rootNode } = initTree(stage, data, 0)
+  ;(window as any).root = root = rootNode
+  ;(stage as Stage).addChild(rootNode)
+  ;(stage as Stage).enableMouseOver(10)
 
-  function start(stage: Stage) {
-    const { el: rootNode } = initTree(stage, data, 0)
-    ;(window as any).root = nodeTree = rootNode
-    ;(stage as Stage).addChild(rootNode)
-    ;(stage as Stage).enableMouseOver(10)
-    layout(rootNode)
-    adjustPosition({ padding: centerConfig })
+  start()
+  window.addEventListener('resize', start)
+  ;(stage as Stage).on('pressdown', (ev: CrkSyntheticEvent) => {
+    needsUpdate = true
+    const { x, y } = ev
+    const target = ev.target as Shape
+    const { parent } = target
+    const mat = target.parent?.getWorldMatrix().invert()
+    const tmp = mat.transformPoint(x, y)
+    const bx = tmp.x
+    const by = tmp.y
+    const { x: ox, y: oy } = target as Shape
+    const { x: pox, y: poy } = parent ?? {}
+    let pressmove: (ev: CrkSyntheticEvent) => void,
+      pressup: (ev: CrkSyntheticEvent) => void
+    const isLeaf = target.type !== 'root'
+    ;(stage as Stage).on(
+      'pressmove',
+      (pressmove = (ev: CrkSyntheticEvent) => {
+        needsUpdate = true
+        const { x, y } = ev
+        const tmp = mat.transformPoint(x, y)
+        const dx = tmp.x - bx
+        const dy = tmp.y - by
+        if (isLeaf) {
+          const root = parent.children.find(
+            child => (child as Shape).type === 'root'
+          ) as Shape
+          const lineShape = parent.children.find(
+            child => (child as Shape).type === 'line'
+          ) as Shape
+          target.x = ox + dx
+          target.y = oy + dy
+          // 向上查找字数根节点
+          if (root) {
+            const p1 = root.local2local(
+              lineShape,
+              (root.width ?? 0) / 2,
+              root.height ?? 0
+            )
 
-    window.onresize = ev => {
-      initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
-      canvas.style.width = '100%'
-      canvas.style.height = '100%'
-      layout(rootNode)
-      adjustPosition({ padding: centerConfig })
-      needsUpdate = true
-    }
-    ;(stage as Stage).on('pressdown', (ev: CrkSyntheticEvent) => {
-      needsUpdate = true
-      const { x, y } = ev
-      const target = ev.target as Shape
-      const { parent } = target
-      const mat = target.parent?.getWorldMatrix().invert()
-      const tmp = mat.transformPoint(x, y)
-      const bx = tmp.x
-      const by = tmp.y
-      const { x: ox, y: oy } = target as Shape
-      const { x: pox, y: poy } = parent ?? {}
-      let pressmove: (ev: CrkSyntheticEvent) => void,
-        pressup: (ev: CrkSyntheticEvent) => void
-      const isLeaf = target.type !== 'root'
-      ;(stage as Stage).on(
-        'pressmove',
-        (pressmove = (ev: CrkSyntheticEvent) => {
-          needsUpdate = true
-          const { x, y } = ev
-          const tmp = mat.transformPoint(x, y)
-          const dx = tmp.x - bx
-          const dy = tmp.y - by
-          if (isLeaf) {
-            const root = parent.children.find(
-              child => (child as Shape).type === 'root'
-            ) as Shape
-            const lineShape = parent.children.find(
-              child => (child as Shape).type === 'line'
-            ) as Shape
+            const points = lineShape.points as { x: number; y: number }[]
+            points[0].x = p1.x
+            points[0].y = p1.y
+
+            let counter = 0
+            parent.children.forEach((child, idx) => {
+              if (child === lineShape || child === root) {
+                counter++
+                return
+              }
+              let p0
+              if (child === target) {
+                p0 = target.local2local(lineShape, (target.width ?? 0) / 2, 0)
+              } else {
+                if (child instanceof Group) {
+                  const tmp = (child as Group).children.find(
+                    item => (item as Shape).type === 'root'
+                  ) as Shape
+                  p0 = tmp.local2local(lineShape, (tmp.width ?? 0) / 2, 0)
+                } else {
+                  p0 = child.local2local(
+                    lineShape,
+                    ((child as Shape).width ?? 0) / 2,
+                    0
+                  )
+                }
+              }
+              // 第0个位置留给root节点
+              let location = idx + 1 - counter
+              points[location].x = p0.x
+              points[location].y = p0.y
+            })
+
+            drawLine(lineShape)
+          }
+        } else {
+          if (!parent) {
             target.x = ox + dx
             target.y = oy + dy
-            // 向上查找字数根节点
+          } else {
+            parent.x = pox + dx
+            parent.y = poy + dy
+            const pp = parent.parent
+            const root = pp.children.find(
+              child => (child as Shape).type === 'root'
+            ) as Shape
+            const lineShape = pp.children.find(
+              child => (child as Shape).type === 'line'
+            ) as Shape
             if (root) {
               const p1 = root.local2local(
                 lineShape,
                 (root.width ?? 0) / 2,
                 root.height ?? 0
               )
-
-              const points = lineShape.points as { x: number; y: number }[]
+              const points = lineShape.points as {
+                x: number
+                y: number
+              }[]
               points[0].x = p1.x
               points[0].y = p1.y
-
               let counter = 0
-              parent.children.forEach((child, idx) => {
-                if (child === lineShape || child === root) {
+              pp.children.forEach((child, idx) => {
+                let tmp = child as Shape | Group
+                if (tmp === lineShape || tmp === root) {
                   counter++
                   return
                 }
-                let p0
-                if (child === target) {
-                  p0 = target.local2local(lineShape, (target.width ?? 0) / 2, 0)
-                } else {
-                  if (child instanceof Group) {
-                    const tmp = (child as Group).children.find(
-                      item => (item as Shape).type === 'root'
-                    ) as Shape
-                    p0 = tmp.local2local(lineShape, (tmp.width ?? 0) / 2, 0)
-                  } else {
-                    p0 = child.local2local(
-                      lineShape,
-                      ((child as Shape).width ?? 0) / 2,
-                      0
-                    )
-                  }
+                if (tmp instanceof Group) {
+                  tmp = (tmp as Group).children.find(
+                    item => (item as Shape).type === 'root'
+                  ) as Shape
                 }
+                const p0 = tmp.local2local(lineShape, (tmp.width ?? 0) / 2, 0)
                 // 第0个位置留给root节点
                 let location = idx + 1 - counter
                 points[location].x = p0.x
                 points[location].y = p0.y
               })
-
               drawLine(lineShape)
             }
+          }
+        }
+      })
+    )
+    ;(stage as Stage).on(
+      'pressup',
+      (pressup = (ev: CrkSyntheticEvent) => {
+        needsUpdate = true
+        ;(stage as Stage).removeListener('pressmove', pressmove)
+        ;(stage as Stage).removeListener('pressup', pressup)
+      })
+    )
+  })
+
+  walk(stage, el => {
+    if ((el as Shape)?.type === 'line') {
+      const dst: Record<string, number | Function> = {}
+      const src: Record<string, number> = {}
+      const { points = [] } = el as Shape
+      points.forEach((p, i) => {
+        dst['x' + i] = p.x
+        dst['y' + i] = p.y
+        src['x' + i] = p.x
+        src['y' + i] = p.y
+
+        let x = p.x
+        let y = p.y
+        Object.defineProperties(p, {
+          x: {
+            set: (v: number) => {
+              src['x' + i] = x = v
+            },
+            get: () => x,
+          },
+          y: {
+            set: (v: number) => {
+              src['y' + i] = y = v
+            },
+            get: () => y,
+          },
+        })
+      })
+
+      dst.onUpdate = (obj: Record<string, number>) => {
+        needsUpdate = true
+        const pts = (el as Shape).points as { x: number; y: number }[]
+        Object.keys(obj).forEach(k => {
+          const key = k.slice(0, 1) as 'x' | 'y'
+          const index = +k.slice(1)
+          if (pts[index]) {
+            pts[index][key] = obj[k] as number
           } else {
-            if (!parent) {
-              target.x = ox + dx
-              target.y = oy + dy
-            } else {
-              parent.x = pox + dx
-              parent.y = poy + dy
-              const pp = parent.parent
-              const root = pp.children.find(
-                child => (child as Shape).type === 'root'
-              ) as Shape
-              const lineShape = pp.children.find(
-                child => (child as Shape).type === 'line'
-              ) as Shape
-              if (root) {
-                const p1 = root.local2local(
-                  lineShape,
-                  (root.width ?? 0) / 2,
-                  root.height ?? 0
-                )
-                const points = lineShape.points as {
-                  x: number
-                  y: number
-                }[]
-                points[0].x = p1.x
-                points[0].y = p1.y
-                let counter = 0
-                pp.children.forEach((child, idx) => {
-                  let tmp = child as Shape | Group
-                  if (tmp === lineShape || tmp === root) {
-                    counter++
-                    return
-                  }
-                  if (tmp instanceof Group) {
-                    tmp = (tmp as Group).children.find(
-                      item => (item as Shape).type === 'root'
-                    ) as Shape
-                  }
-                  const p0 = tmp.local2local(lineShape, (tmp.width ?? 0) / 2, 0)
-                  // 第0个位置留给root节点
-                  let location = idx + 1 - counter
-                  points[location].x = p0.x
-                  points[location].y = p0.y
-                })
-                drawLine(lineShape)
-              }
-            }
+            pts[index] = {} as { x: number; y: number }
+            pts[index][key] = obj[k] as number
           }
         })
-      )
-      ;(stage as Stage).on(
-        'pressup',
-        (pressup = (ev: CrkSyntheticEvent) => {
-          needsUpdate = true
-          ;(stage as Stage).removeListener('pressmove', pressmove)
-          ;(stage as Stage).removeListener('pressup', pressup)
-        })
-      )
-    })
-
-    walk(stage, el => {
-      if ((el as Shape)?.type === 'line') {
-        const dst: Record<string, number | Function> = {}
-        const src: Record<string, number> = {}
-        const { points = [] } = el as Shape
-        points.forEach((p, i) => {
-          dst['x' + i] = p.x
-          dst['y' + i] = p.y
-          src['x' + i] = p.x
-          src['y' + i] = p.y
-
-          let x = p.x
-          let y = p.y
-          Object.defineProperties(p, {
-            x: {
-              set: (v: number) => {
-                src['x' + i] = x = v
-              },
-              get: () => x,
-            },
-            y: {
-              set: (v: number) => {
-                src['y' + i] = y = v
-              },
-              get: () => y,
-            },
-          })
-        })
-
-        dst.onUpdate = (obj: Record<string, number>) => {
-          needsUpdate = true
-          const pts = (el as Shape).points as { x: number; y: number }[]
-          Object.keys(obj).forEach(k => {
-            const key = k.slice(0, 1) as 'x' | 'y'
-            const index = +k.slice(1)
-            if (pts[index]) {
-              pts[index][key] = obj[k] as number
-            } else {
-              pts[index] = {} as { x: number; y: number }
-              pts[index][key] = obj[k] as number
-            }
-          })
-          drawLine(el as Shape)
-        }
-
-        dataMap[el.uuid] = {
-          src,
-          dst,
-        }
-      } else {
-        dataMap[el.uuid] = {
-          src: el,
-          dst: {
-            x: el.x,
-            y: el.y,
-          },
-        }
+        drawLine(el as Shape)
       }
-    })
-    update(stage as Stage)
 
-    function getTextMarics(stage: Stage, text: string) {
-      return stage.ctx.measureText(text)
+      dataMap[el.uuid] = {
+        src,
+        dst,
+      }
+    } else {
+      dataMap[el.uuid] = {
+        src: el,
+        dst: {
+          x: el.x,
+          y: el.y,
+        },
+      }
     }
+  })
+  update(stage as Stage)
 
-    function initTree(stage: Stage, node: Node, level: number) {
-      const color = `hsl(${((level / 5) * 360) | 0}, 60%, 50%)`
-
-      let shape = new Shape()
-      let g = shape.graphics
-      let textMetrics = getTextMarics(stage, node.name)
-      let shapeWidth = textMetrics.width * 2 + 20
-      let fixedHeight = 40
-      const fontSize = 20
-      shape.cursor = 'pointer'
-      shape.width = shapeWidth
-      shape.height = fixedHeight
-      setRoundRect(g, 0, 0, shapeWidth, fixedHeight, 10)
-      g.setStrokeStyle({ color: '#555', lineWidth: 1 })
-        .setFillStyle(color)
-        .fill()
-        .setFillStyle('#fff')
-        .setTextStyle({ font: `${fontSize}px arial`, textAlign: 'center' })
-        .fillText(node.name, shapeWidth / 2, 25)
-        .stroke()
-      shape.text = node.name
-      const pts = [] as IPoint[]
-      if (node.children?.length) {
-        let grp = new Group()
-
-        node.children.forEach((e, i) => {
-          const { el } = initTree(stage, e, level + 1)
-          pts.push({ uuid: el.uuid })
-          grp.addChild(el)
-        })
-        grp.addChild(shape)
-        shape.type = 'root'
-        shape.cursor = 'move'
-
-        let lineShape = new Shape()
-        lineShape.ignoreEvent = true
-        lineShape.type = 'line'
-        grp.addChild(lineShape)
-        lineShape.points = [
-          { uuid: shape.uuid, x: 0, y: 0 },
-          ...pts.map(item => {
-            return { x: 0, y: 0, ...item }
-          }),
-        ]
-
-        return { el: grp }
-      }
-      return { el: shape, width: shapeWidth, height: fixedHeight }
-    }
-    canvas.addEventListener('wheel', ev => {
-      console.log('wheel', ev.deltaX, ev.deltaY)
-      if (ev.deltaMode === ev.DOM_DELTA_PIXEL) {
-        if (ev.ctrlKey || ev.metaKey) {
-          // zoom
-          let { x, y } = stage.global2local(ev.clientX - 200, ev.clientY)
-          setAnchor(stage, x, y)
-
-          const ss = stage.scale * Math.pow(0.98, ev.deltaY)
-          // const maxScale = Infinity
-          // const minScale = Infinity
-          // ss = Math.max(Math.min(ss, maxScale), minScale)
-          stage.scale = ss
-          console.log(ss, ev.clientX, ev.clientY, x, y)
-        } else {
-          stage.x += -ev.deltaX
-          stage.y += -ev.deltaY
-        }
-        needsUpdate = true
-        ev.preventDefault()
-      }
-    })
+  function start() {
+    initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
+    layout(rootNode)
+    adjustPosition({ padding: centerConfig })
+    needsUpdate = true
   }
+
+  function getTextMarics(stage: Stage, text: string) {
+    return stage.ctx.measureText(text)
+  }
+
+  function initTree(stage: Stage, node: Node, level: number) {
+    const color = `hsl(${((level / 5) * 360) | 0}, 60%, 50%)`
+
+    let shape = new Shape()
+    let g = shape.graphics
+    let textMetrics = getTextMarics(stage, node.name)
+    let shapeWidth = textMetrics.width * 2 + 20
+    let fixedHeight = 40
+    const fontSize = 20
+    shape.cursor = 'pointer'
+    shape.width = shapeWidth
+    shape.height = fixedHeight
+    setRoundRect(g, 0, 0, shapeWidth, fixedHeight, 10)
+    g.setStrokeStyle({ color: '#555', lineWidth: 1 })
+      .setFillStyle(color)
+      .fill()
+      .setFillStyle('#fff')
+      .setTextStyle({ font: `${fontSize}px arial`, textAlign: 'center' })
+      .fillText(node.name, shapeWidth / 2, 25)
+      .stroke()
+    shape.text = node.name
+    const pts = [] as IPoint[]
+    if (node.children?.length) {
+      let grp = new Group()
+
+      node.children.forEach((e, i) => {
+        const { el } = initTree(stage, e, level + 1)
+        pts.push({ uuid: el.uuid })
+        grp.addChild(el)
+      })
+      grp.addChild(shape)
+      shape.type = 'root'
+      shape.cursor = 'move'
+
+      let lineShape = new Shape()
+      lineShape.ignoreEvent = true
+      lineShape.type = 'line'
+      grp.addChild(lineShape)
+      lineShape.points = [
+        { uuid: shape.uuid, x: 0, y: 0 },
+        ...pts.map(item => {
+          return { x: 0, y: 0, ...item }
+        }),
+      ]
+
+      return { el: grp }
+    }
+    return { el: shape, width: shapeWidth, height: fixedHeight }
+  }
+  canvas.addEventListener('wheel', ev => {
+    console.log('wheel', ev.deltaX, ev.deltaY)
+    if (ev.deltaMode === ev.DOM_DELTA_PIXEL) {
+      if (ev.ctrlKey || ev.metaKey) {
+        // zoom
+        let { x, y } = stage.global2local(ev.clientX - 200, ev.clientY)
+        setAnchor(stage, x, y)
+
+        const ss = stage.scale * Math.pow(0.98, ev.deltaY)
+        stage.scale = ss
+        console.log(ss, ev.clientX, ev.clientY, x, y)
+      } else {
+        stage.x += -ev.deltaX
+        stage.y += -ev.deltaY
+      }
+      needsUpdate = true
+      ev.preventDefault()
+    }
+  })
+
   return () => {
     cancelAnimationFrame(id)
+    window.removeEventListener('resize', start)
   }
 }
 
@@ -360,9 +351,9 @@ function layout(node: Group | Shape) {
   // let totalWidth = 0
   let totalHeight = 0
   let displayMap: any[] = []
-  _layout(node, totalHeight, level, displayMap)
+  doLayout(node, totalHeight, level, displayMap)
 
-  function _layout(
+  function doLayout(
     node: Group | Shape,
     totalHeight: number,
     level: number,
@@ -410,7 +401,7 @@ function layout(node: Group | Shape) {
         let currentIndex =
           rootShape && lineShape ? i - 2 : rootShape || lineShape ? i - 1 : i
         let container = (data[currentIndex] = [])
-        _layout(child, totalHeight + MARGIN_Y, layer, container)
+        doLayout(child, totalHeight + MARGIN_Y, layer, container)
         let targetShape: Shape
         if (child instanceof Shape) {
           targetShape = child
@@ -465,7 +456,6 @@ function layout(node: Group | Shape) {
         displayMap[level] = { left: rootShape, right: rootShape, data }
 
         // 当子元素宽度不足时,子树根节点可能超出边界,需要重新适配位置
-        // const coorX = rootShape.parent.local2global(rootShape.x, rootShape.y).x
         const coorX = rootShape.parent.local2local(
           stage,
           rootShape.x,
@@ -602,7 +592,12 @@ function setPosition(list: any, subroot: Group, type = 0) {
 function getBoundingBox(el: Element) {
   // @ts-ignore
   // window.aaa = getBoundingBox
-  const result = { left: 0, right: 0, top: 0, bottom: 0 }
+  const result = {
+    left: Infinity,
+    right: -Infinity,
+    top: Infinity,
+    bottom: -Infinity,
+  }
   doGetBoundingBox(el)
   return result
 
@@ -612,21 +607,12 @@ function getBoundingBox(el: Element) {
         doGetBoundingBox(child)
       })
     } else {
-      // const coor1 = el.parent?.local2global(el.x, el.y) as {
-      //   x: number
-      //   y: number
-      // }
-      // const coor2 = el.parent?.local2global(
-      //   el.x + ((el as Shape)?.width ?? 0),
-      //   el.y + ((el as Shape)?.height ?? 0)
-      // ) as { x: number; y: number }
-
-      const coor1 = el.parent?.local2local(nodeTree, el.x, el.y) as {
+      const coor1 = el.parent?.local2local(root, el.x, el.y) as {
         x: number
         y: number
       }
       const coor2 = el.parent?.local2local(
-        nodeTree,
+        root,
         el.x + ((el as Shape)?.width ?? 0),
         el.y + ((el as Shape)?.height ?? 0)
       ) as { x: number; y: number }
@@ -686,25 +672,19 @@ function adjustPosition(
     paddingBottom?: number
   }
 ) {
-  // const src = { x: nodeTree.x, y: nodeTree.y }
-  // stage.scale = 1
-  // stage.x = 0
-  // stage.y = 0
-
-  // nodeTree.scale = 1
-  const boundingBox = getBoundingBox(nodeTree)
+  const boundingBox = getBoundingBox(root)
   // @ts-ignore
   window.boundingBox = boundingBox
-  boxShape.graphics
-    .clear()
-    .setStrokeStyle({ lineWidth: 1, color: 'red' })
-    .moveTo(boundingBox.left, boundingBox.top)
-    .lineTo(boundingBox.right, boundingBox.top)
-    .lineTo(boundingBox.right, boundingBox.bottom)
-    .lineTo(boundingBox.left, boundingBox.bottom)
-    .closePath()
-    .stroke()
-  ;(nodeTree as Group).addChild(boxShape)
+  // boxShape.graphics
+  //   .clear()
+  //   .setStrokeStyle({ lineWidth: 1, color: 'red' })
+  //   .moveTo(boundingBox.left, boundingBox.top)
+  //   .lineTo(boundingBox.right, boundingBox.top)
+  //   .lineTo(boundingBox.right, boundingBox.bottom)
+  //   .lineTo(boundingBox.left, boundingBox.bottom)
+  //   .closePath()
+  //   .stroke()
+  // ;(nodeTree as Group).addChild(boxShape)
 
   let { padding, paddingLeft, paddingTop, paddingRight, paddingBottom } = opt
 
@@ -724,27 +704,7 @@ function adjustPosition(
 
   const { scale, x, y } = getBackgroundData(sw, sh, dw, dh)
 
-  console.log(sw, sh, dw, dh, scale, x, y, '--------')
-
-  // nodeTree.scale = scale > 1 ? 1 : scale
-  // nodeTree.x = x * scale
-  // nodeTree.y = y * scale
-  // const dst = {
-  //   x: x + paddingLeft,
-  //   y: y + paddingTop,
-  //   onUpdate: (obj: Record<string, number>) => {
-  //     needsUpdate = true
-  //     nodeTree.x = obj.x
-  //     nodeTree.y = obj.y
-  //   },
-  // }
-  // ease(src, dst)
-
-  if ((window as any).abc) {
-    debugger
-  }
-
-  ease(nodeTree, {
+  ease(root, {
     x: x + paddingLeft,
     y: y + paddingTop,
 
@@ -769,9 +729,11 @@ function update(stage: Stage) {
   id = requestAnimationFrame(() => update(stage))
 }
 
-export function doResort() {
+export function resort() {
   let srcMap = {} as Record<string, { x: number; y: number }>
-  walk(nodeTree, (item: Element) => {
+  walk(root, (item: Element) => {
+    if (item === root) return
+
     let src: Record<string, number>
     srcMap[item.uuid] = src = { x: item.x, y: item.y }
     if ((item as Shape).type === 'line') {
@@ -781,17 +743,15 @@ export function doResort() {
         src['y' + i] = p.y
       })
     }
+
+    item.x = item.y = 0
   })
-  doResort(nodeTree)
-  walk(nodeTree, (item: Element) => {
-    item.x = 0
-    item.y = 0
-  })
-  layout(nodeTree)
+  doResort(root)
+  layout(root)
   adjustPosition({ padding: centerConfig })
   needsUpdate = true
   let dstMap = {} as Record<string, Shape | Group>
-  walk(nodeTree, (item: Element) => {
+  walk(root, (item: Element) => {
     let dst: Record<string, any>
     dstMap[item.uuid] = dst = item as Shape | Group
     if ((item as Shape).type === 'line') {
@@ -806,6 +766,7 @@ export function doResort() {
   Object.keys(srcMap).forEach(key => {
     const src = srcMap[key]
     const dst = dstMap[key]
+
     if ((dst as Shape)?.type === 'line') {
       // @ts-ignore
       dst.onUpdate = (obj: Record<string, number>) => {
@@ -855,15 +816,14 @@ export function doResort() {
     arr.sort((a: Group | Shape, b: Group | Shape) => {
       doResort(a)
       doResort(b)
-      // return Math.random() - 0.5
-      return -1
+      return Math.random() - 0.5
     })
     list.splice(0)
     list.push(...arr1, ...arr2)
   }
 }
 
-export function doReset() {
+export function reset() {
   needsUpdate = true
   Object.keys(dataMap).forEach(id => {
     const { src, dst } = dataMap[id as any]

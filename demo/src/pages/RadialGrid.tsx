@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Stage, Shape, Group, deg2rad } from '@mikixing/crk'
+import { Stage, Shape, Group, deg2rad, Ticker } from '@mikixing/crk'
 import { initCanvas, getRoundCircle, Vector } from '../util'
 
 export default function RadialBar() {
@@ -22,11 +22,14 @@ function initStage(canvas: HTMLCanvasElement) {
   ]
   const maxValue = Math.max(...data.map(item => item.value))
   const maxAngle = 270
+  const ticker = new Ticker()
 
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
   const [width, height] = initCanvas(canvas)
 
   const stage = new Stage(canvas)
+
+  stage.enableMouseOver()
 
   const radius = 50
   const gap = 50
@@ -39,8 +42,8 @@ function initStage(canvas: HTMLCanvasElement) {
     grp.x = width / 2
     grp.y = height / 2
 
-    const tmp = new Array(len + 1).fill(1)
-    tmp.forEach((item, i) => {
+    const arr = new Array(len + 1).fill(1)
+    arr.forEach((item, i) => {
       const shape = new Shape()
       const g = shape.graphics
 
@@ -49,7 +52,7 @@ function initStage(canvas: HTMLCanvasElement) {
 
       const step = 30
       let angle = 0
-      if (i === tmp.length - 1) {
+      if (i === arr.length - 1) {
         while (angle < 360) {
           const x = Math.cos(angle * deg2rad) * r
           const y = Math.sin(angle * deg2rad) * r
@@ -88,10 +91,28 @@ function initStage(canvas: HTMLCanvasElement) {
     grp.y = height / 2
     grp.rotation = -90
 
+    grp.delegate('mouseover', 'bar', ev => {
+      const el = ev.currentTarget
+      ticker.needsUpdate = true
+
+      el && (el.alpha = 1)
+    })
+
+    grp.delegate('mouseout', 'bar', ev => {
+      const el = ev.currentTarget
+      ticker.needsUpdate = true
+
+      el && (el.alpha = 0.8)
+    })
+
     data.forEach((item, i) => {
       const shape = new Shape()
       const g = shape.graphics
       grp.addChild(shape)
+
+      shape.addAttr('bar')
+
+      shape.alpha = 0.8
 
       const endAngle = (item.value / maxValue) * maxAngle
       console.log()
@@ -110,5 +131,11 @@ function initStage(canvas: HTMLCanvasElement) {
     })
   }
 
-  stage.update()
+  ticker.on('frame', () => {
+    stage.update()
+  })
+
+  return () => {
+    ticker.dispose()
+  }
 }

@@ -166,33 +166,6 @@ const data = {
             },
           ],
         },
-        {
-          name: 'ETHICS',
-          children: [
-            {
-              name: 'GENERAL',
-            },
-            {
-              name: 'PARTICULAR',
-              children: [
-                {
-                  name: 'SCIENCE OF LAWS',
-                  children: [
-                    {
-                      name: 'NATURAL',
-                    },
-                    {
-                      name: 'ECONOMIC',
-                    },
-                    {
-                      name: 'POLITICAL',
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
       ],
     },
     {
@@ -201,41 +174,6 @@ const data = {
         {
           name: 'METHEMAtICS',
           children: [
-            {
-              name: 'PURE',
-              children: [
-                {
-                  name: 'ARITHMETIC',
-                  children: [
-                    {
-                      name: 'NUMERIC',
-                    },
-                    {
-                      name: 'ALGEBRA',
-                      children: [
-                        {
-                          name: 'ELEMENTARY',
-                        },
-                        {
-                          name: 'INFINITESIMAL',
-                          children: [
-                            {
-                              name: 'DIFFERENTIAL',
-                            },
-                            {
-                              name: 'INTEGRAL',
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  name: 'GEOMETRY',
-                },
-              ],
-            },
             {
               name: 'MIXED',
               children: [
@@ -380,31 +318,6 @@ const data = {
                 },
                 {
                   name: 'METEOROLOGY',
-                },
-                {
-                  name: 'COSMOLOGY',
-                  children: [
-                    {
-                      name: 'AEROLOGY',
-                    },
-                    {
-                      name: 'GEOLOGY',
-                    },
-                  ],
-                },
-                {
-                  name: 'BOTANY',
-                  children: [
-                    {
-                      name: 'AGRICULTURE',
-                    },
-                    {
-                      name: 'GARDENING',
-                    },
-                  ],
-                },
-                {
-                  name: 'MINERALOGY',
                 },
                 {
                   name: 'CHEMISTRY',

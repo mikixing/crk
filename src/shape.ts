@@ -12,7 +12,6 @@ import { ActionTypes, ActionKeyMap, NativeMethodTypes } from './constant'
 export default class Shape extends Element {
   public graphics: Graphics
   public parent: Group | Stage = null
-  private gradientFill: any
   constructor(g?: Graphics) {
     super()
     this.graphics = g || new Graphics()

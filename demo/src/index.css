@@ -43,3 +43,21 @@ code {
   user-select: none;
   /* Non-prefixed version, currently not supported by any browser */
 }
+
+.ant-menu-title-content a {
+  color: #555 !important;
+}
+
+/* .controller {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  padding: 0 10px;
+}
+
+.row {
+  margin: 10px 0;
+} */

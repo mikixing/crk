@@ -73,6 +73,7 @@ export default class Deformer {
   }
 
   private generateMask(el: Element) {
+    this.maskGrp.cursor = 'pointer'
     this.maskGrp.removeAllChildren()
     const mask = new Shape()
     this.maskGrp.addChild(mask)
@@ -150,6 +151,35 @@ export default class Deformer {
           this.updateTool(el)
         })
 
+      switch (i) {
+        case 0:
+          cvShape.cursor = 'nwse-resize'
+          break
+        case 1:
+          cvShape.cursor = 'ns-resize'
+          break
+        case 2:
+          cvShape.cursor = 'nesw-resize'
+          break
+        case 3:
+          cvShape.cursor = 'ew-resize'
+          break
+        case 4:
+          cvShape.cursor = 'nwse-resize'
+          break
+        case 5:
+          cvShape.cursor = 'ns-resize'
+          break
+        case 6:
+          cvShape.cursor = 'nesw-resize'
+          break
+        case 7:
+          cvShape.cursor = 'ew-resize'
+          break
+        default:
+          cvShape.cursor = 'ns-resize'
+      }
+
       return cvShape
     })
   }
@@ -216,9 +246,20 @@ export default class Deformer {
       this.cvs[1].x * width,
       this.cvs[3].y * height
     )
+    pivotShape.cursor = 'pointer'
+    const pivotShapeRadius = 4
+    const pivotShapeBar = 4
     pivotShape.graphics
       .clear()
-      .arc(tmp.x, tmp.y, 6, 0, Math.PI * 2)
+      .arc(tmp.x, tmp.y, pivotShapeRadius, 0, Math.PI * 2)
+      .moveTo(tmp.x + pivotShapeRadius, tmp.y)
+      .lineTo(tmp.x + pivotShapeRadius + pivotShapeBar, tmp.y)
+      .moveTo(tmp.x, tmp.y + pivotShapeRadius)
+      .lineTo(tmp.x, tmp.y + pivotShapeRadius + pivotShapeBar)
+      .moveTo(tmp.x - pivotShapeRadius, tmp.y)
+      .lineTo(tmp.x - pivotShapeRadius - pivotShapeBar, tmp.y)
+      .moveTo(tmp.x, tmp.y - pivotShapeRadius)
+      .lineTo(tmp.x, tmp.y - pivotShapeRadius - pivotShapeBar)
       .setStrokeStyle({ color: '#222' })
       .stroke()
     toolGrp.addChild(pivotShape)
@@ -346,9 +387,20 @@ export default class Deformer {
       this.cvs[1].x * width,
       this.cvs[3].y * height
     )
+    pivotShape.cursor = 'pointer'
+    const pivotShapeRadius = 4
+    const pivotShapeBar = 4
     pivotShape.graphics
       .clear()
-      .arc(tmp.x, tmp.y, 6, 0, Math.PI * 2)
+      .arc(tmp.x, tmp.y, pivotShapeRadius, 0, Math.PI * 2)
+      .moveTo(tmp.x + pivotShapeRadius, tmp.y)
+      .lineTo(tmp.x + pivotShapeRadius + pivotShapeBar, tmp.y)
+      .moveTo(tmp.x, tmp.y + pivotShapeRadius)
+      .lineTo(tmp.x, tmp.y + pivotShapeRadius + pivotShapeBar)
+      .moveTo(tmp.x - pivotShapeRadius, tmp.y)
+      .lineTo(tmp.x - pivotShapeRadius - pivotShapeBar, tmp.y)
+      .moveTo(tmp.x, tmp.y - pivotShapeRadius)
+      .lineTo(tmp.x, tmp.y - pivotShapeRadius - pivotShapeBar)
       .setStrokeStyle({ color: '#222' })
       .stroke()
   }
@@ -388,6 +440,7 @@ export default class Deformer {
   public update() {
     if (this.els.length === 1) {
       const el = this.els[0]
+      el.cursor = 'pointer'
       this.generateMask(el)
       this.generateCv(el)
       this.generateRotateBtn(el)

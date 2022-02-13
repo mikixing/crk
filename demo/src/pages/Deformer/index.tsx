@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import Deformer from './deformer'
-import { Stage, Group, Bitmap as RawBitmap } from '@mikixing/crk'
-import { initCanvas, loadImage, getFileDataURL, getFileText } from '../../util'
+import { Stage, Group, Bitmap as RawBitmap, Shape } from '@mikixing/crk'
+import { initCanvas, loadImage, getFileDataURL } from '../../util'
 import { Upload, message, Button } from 'antd'
 import { UploadOutlined } from '@ant-design/icons'
 
@@ -14,73 +14,84 @@ const deformerList = [] as Deformer[]
 let bmGrp: Group
 let deformerGrp: Group
 
-function addImage(img: HTMLImageElement, canvas?: HTMLCanvasElement) {
-  const bm = new Bitmap(img)
+function addImageToDeformer(img: HTMLImageElement, canvas?: HTMLCanvasElement) {
+  const bmImg = new Bitmap(img)
   const x = Math.random() * Math.max(80, canvas?.offsetWidth ?? 100)
   const y = Math.random() * Math.max(80, canvas?.offsetHeight ?? 100)
-  bm.rect = {
+  bmImg.rect = {
     x,
     y,
-    width: bm.source.width,
-    height: bm.source.height,
+    width: bmImg.source.width,
+    height: bmImg.source.height,
   }
 
-  bm.x = x
-  bm.y = y
-  bm.rotation = 45
-  bm.scale = 0.2
-  bmGrp.addChild(bm)
+  bmImg.x = x
+  bmImg.y = y
+  bmImg.rotation = 45
+  bmImg.scale = 0.2
+  bmGrp.addChild(bmImg)
   // panelGrp.rotation = 30
-  let { deformer } = bm as { deformer: Deformer }
-  bm.on('mouseover', (ev: any) => {
-    if (!deformer) {
-      deformer = bm.deformer = new Deformer([bm], deformerGrp)
-      deformerList.push(deformer)
-    }
-    deformer.toggleHover()
-  })
+  let { deformer } = bmImg as { deformer: Deformer }
+  bmImg
+    .on('mouseover', (ev: any) => {
+      if (!deformer) {
+        deformer = bmImg.deformer = new Deformer([bmImg], deformerGrp)
+        deformerList.push(deformer)
+      }
+      deformer.toggleHover()
+    })
     .on('mouseout', (ev: any) => {
       if (deformer.status === 'active') return
       deformer.toggleHover(false)
     })
     .on('pressdown', ev => {
+      ev.stopPropagation()
       deformerList.forEach(d => {
         d.toggleActive(false)
         d.toggleHover(false)
       })
       deformer?.toggleActive?.()
 
-      let ox = bm.x,
-        oy = bm.y // target origin x, y
-      let p1: { x: number; y: number } = bm.parent.global2local(ev.x, ev.y)
+      let ox = bmImg.x,
+        oy = bmImg.y // target origin x, y
+      let p1: { x: number; y: number } = bmImg.parent.global2local(ev.x, ev.y)
       let pressmoveFn: (ev: any) => void
       let pressupFn: (ev: any) => void
-      bm.on(
+      bmImg.on(
         'pressmove',
         (pressmoveFn = ev => {
-          const p2 = bm.parent.global2local(ev.x, ev.y) // 鼠标位置在bmGrp中对应的坐标
-          bm.x = ox + p2.x - p1.x
-          bm.y = oy + p2.y - p1.y
+          const p2 = bmImg.parent.global2local(ev.x, ev.y) // 鼠标位置在bmGrp中对应的坐标
+          bmImg.x = ox + p2.x - p1.x
+          bmImg.y = oy + p2.y - p1.y
           deformer.update()
           deformer?.toggleActive?.()
         })
       )
-      bm.on(
+      bmImg.on(
         'pressup',
         (pressupFn = ev => {
-          bm.removeListener('pressmove', pressmoveFn)
-          bm.removeListener('pressup', pressupFn)
+          bmImg.removeListener('pressmove', pressmoveFn)
+          bmImg.removeListener('pressup', pressupFn)
         })
       )
     })
 }
 
-async function init(canvas: HTMLCanvasElement) {
+async function init(canvas: HTMLCanvasElement, width: number, height: number) {
   canvas.getContext('2d') as CanvasRenderingContext2D
   const stage = new Stage(canvas)
   bmGrp = new Group()
   deformerGrp = new Group()
 
+  // 灰色背景层
+  const bmShape = new Shape()
+  bmShape.graphics.rect(0, 0, width, height).setFillStyle('#aaa').fill()
+  bmShape.on('pressdown', ev => {
+    deformerList.forEach(deformer => {
+      deformer.toggleHover(false)
+    })
+  })
+  bmGrp.addChild(bmShape)
   stage.addChild(bmGrp, deformerGrp)
 
   stage.mouseMoveOutside = true
@@ -91,7 +102,7 @@ async function init(canvas: HTMLCanvasElement) {
   ]
   const arr = await loadImage(images)
   arr.forEach((img, i) => {
-    addImage(img, canvas)
+    addImageToDeformer(img, canvas)
   })
 
   stage.enableMouseOver(16)
@@ -130,7 +141,7 @@ async function getImage(file: File, canvas?: HTMLCanvasElement) {
   const image = new Image() as any
   image.src = dataURL
   image.onload = function () {
-    addImage(image, canvas)
+    addImageToDeformer(image, canvas)
   }
 }
 
@@ -138,8 +149,12 @@ export default function DeformerComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
-    initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
-    init(canvas)
+    const [width, height] = initCanvas(
+      canvas,
+      canvas.offsetWidth,
+      canvas.offsetHeight
+    )
+    init(canvas, width, height)
   }, [])
 
   const props = {
@@ -148,20 +163,22 @@ export default function DeformerComponent() {
     headers: {
       authorization: 'authorization-text',
     },
+    showUploadList: false,
+    progress: { strokeWidth: 2, showInfo: true },
     onChange(info: any) {
       if (info.file.status === 'done' || info.file.status === 'error') {
         const file = info?.fileList?.[0].originFileObj as File
         getImage(file, canvasRef.current as HTMLCanvasElement)
+        message.success(`${info.file.name} 上传成功`)
       }
     },
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <canvas
-        style={{ backgroundColor: '#aaa', height: '80%' }}
-        ref={canvasRef}
-      ></canvas>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}
+    >
+      <canvas ref={canvasRef}></canvas>
       <Upload {...props} style={{ height: '60px' }}>
         <Button icon={<UploadOutlined />}>上传图片</Button>
       </Upload>

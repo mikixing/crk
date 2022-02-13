@@ -1,13 +1,17 @@
+import { GUI } from 'dat.gui'
 import {
   Stage,
   Group,
   Shape as BaseShape,
   Element,
   CrkSyntheticEvent,
+  Ticker,
 } from '@mikixing/crk'
 import { ease } from '@mikixing/transition'
-import { initCanvas, setAnchor, setRoundRect } from '../../util'
+
+import { adjustPosition, initCanvas, setAnchor, setRoundRect } from '../../util'
 import data from './data2'
+import { stdStage } from '../../common'
 
 interface Node {
   name: string
@@ -32,26 +36,63 @@ class Shape extends BaseShape {
 
 const MARGIN_X = 20 // 子节点之间的水平衡距离
 const MARGIN_Y = 400 // 父子节点的垂直距离
-
-let needsUpdate = true
-let id: number
-
-let dataMap = {} as Record<
-  number,
-  {
-    src: Record<string, number> | Element
-    dst: Record<string, number | Function>
-  }
->
-let canvas: HTMLCanvasElement
-let stage: Stage
-let root: Group | Shape
 const centerConfig = [0, 0, 0, 0]
 
-export default function setView(canvasDom: HTMLCanvasElement) {
+export default function setTree(canvasDom: HTMLCanvasElement) {
+  let id: number
+  let dataMap = {} as Record<
+    number,
+    {
+      src: Record<string, number> | Element
+      dst: Record<string, number | Function>
+    }
+  >
+  let canvas: HTMLCanvasElement
+  let stage: Stage
+  let root: Group | Shape
+  let isCompact = true
+  let ticker: Ticker
+  let stdObj: {
+    ticker: Ticker
+    dispose: () => void
+  }
+
+  const gui = new GUI()
+  gui.width = 100
+
+  const d = { reset, resort, compact: true }
+
+  gui.add(d, 'resort')
+  gui.add(d, 'reset')
+  gui
+    .add(d, 'compact')
+    .name('紧凑型')
+    .onChange(v => {
+      layoutAndAnimate({
+        layout: () => {
+          if (v) {
+            layoutForCompact(root)
+          } else {
+            layoutForLoose(root)
+          }
+        },
+      })
+    })
+
   canvas = canvasDom
   ;(window as any).stage = stage = new Stage(canvas)
   stage.mouseMoveOutside = true
+
+  stdObj = stdStage({
+    stage,
+  })
+
+  ticker = stdObj.ticker
+
+  ticker.on('frame', () => {
+    stage.update()
+  })
+
   // @ts-ignore
   // window.stage = stage
   const { el: rootNode } = initTree(stage, data, 0)
@@ -61,24 +102,27 @@ export default function setView(canvasDom: HTMLCanvasElement) {
 
   start()
   window.addEventListener('resize', start)
-  ;(stage as Stage).on('pressdown', (ev: CrkSyntheticEvent) => {
-    needsUpdate = true
+  stage.delegate('pressdown', 'canDrag', (ev: CrkSyntheticEvent) => {
+    ev.stopPropagation()
+    ticker.needsUpdate = true
     const { x, y } = ev
     const target = ev.target as Shape
+    const isLeaf = target.type !== 'root'
     const { parent } = target
-    const mat = target.parent?.getWorldMatrix().invert()
+    const mat = isLeaf
+      ? target.parent?.getWorldMatrix().invert()
+      : target.parent?.parent?.getWorldMatrix().invert()
     const tmp = mat.transformPoint(x, y)
-    const bx = tmp.x
-    const by = tmp.y
+    const bx = tmp.x // begin x
+    const by = tmp.y // begin y
     const { x: ox, y: oy } = target as Shape
     const { x: pox, y: poy } = parent ?? {}
     let pressmove: (ev: CrkSyntheticEvent) => void,
       pressup: (ev: CrkSyntheticEvent) => void
-    const isLeaf = target.type !== 'root'
     ;(stage as Stage).on(
       'pressmove',
       (pressmove = (ev: CrkSyntheticEvent) => {
-        needsUpdate = true
+        ticker.needsUpdate = true
         const { x, y } = ev
         const tmp = mat.transformPoint(x, y)
         const dx = tmp.x - bx
@@ -143,17 +187,17 @@ export default function setView(canvasDom: HTMLCanvasElement) {
             parent.x = pox + dx
             parent.y = poy + dy
             const pp = parent.parent
-            const root = pp.children.find(
+            const rootShape = pp.children.find(
               child => (child as Shape).type === 'root'
             ) as Shape
             const lineShape = pp.children.find(
               child => (child as Shape).type === 'line'
             ) as Shape
-            if (root) {
-              const p1 = root.local2local(
+            if (rootShape) {
+              const p1 = rootShape.local2local(
                 lineShape,
-                (root.width ?? 0) / 2,
-                root.height ?? 0
+                (rootShape.width ?? 0) / 2,
+                rootShape.height ?? 0
               )
               const points = lineShape.points as {
                 x: number
@@ -164,7 +208,7 @@ export default function setView(canvasDom: HTMLCanvasElement) {
               let counter = 0
               pp.children.forEach((child, idx) => {
                 let tmp = child as Shape | Group
-                if (tmp === lineShape || tmp === root) {
+                if (tmp === lineShape || tmp === rootShape) {
                   counter++
                   return
                 }
@@ -188,79 +232,21 @@ export default function setView(canvasDom: HTMLCanvasElement) {
     ;(stage as Stage).on(
       'pressup',
       (pressup = (ev: CrkSyntheticEvent) => {
-        needsUpdate = true
+        ticker.needsUpdate = true
         ;(stage as Stage).removeListener('pressmove', pressmove)
         ;(stage as Stage).removeListener('pressup', pressup)
       })
     )
   })
 
-  walk(stage, el => {
-    if ((el as Shape)?.type === 'line') {
-      const dst: Record<string, number | Function> = {}
-      const src: Record<string, number> = {}
-      const { points = [] } = el as Shape
-      points.forEach((p, i) => {
-        dst['x' + i] = p.x
-        dst['y' + i] = p.y
-        src['x' + i] = p.x
-        src['y' + i] = p.y
-
-        let x = p.x
-        let y = p.y
-        Object.defineProperties(p, {
-          x: {
-            set: (v: number) => {
-              src['x' + i] = x = v
-            },
-            get: () => x,
-          },
-          y: {
-            set: (v: number) => {
-              src['y' + i] = y = v
-            },
-            get: () => y,
-          },
-        })
-      })
-
-      dst.onUpdate = (obj: Record<string, number>) => {
-        needsUpdate = true
-        const pts = (el as Shape).points as { x: number; y: number }[]
-        Object.keys(obj).forEach(k => {
-          const key = k.slice(0, 1) as 'x' | 'y'
-          const index = +k.slice(1)
-          if (pts[index]) {
-            pts[index][key] = obj[k] as number
-          } else {
-            pts[index] = {} as { x: number; y: number }
-            pts[index][key] = obj[k] as number
-          }
-        })
-        drawLine(el as Shape)
-      }
-
-      dataMap[el.uuid] = {
-        src,
-        dst,
-      }
-    } else {
-      dataMap[el.uuid] = {
-        src: el,
-        dst: {
-          x: el.x,
-          y: el.y,
-        },
-      }
-    }
-  })
-  update(stage as Stage)
-
   function start() {
-    initCanvas(canvas, canvas.offsetWidth, canvas.offsetHeight)
-    layout(rootNode)
-    adjustPosition({ padding: centerConfig })
-    needsUpdate = true
+    layoutAndAnimate({
+      layout: () => {
+        layoutForCompact(root)
+
+        collectResetData()
+      },
+    })
   }
 
   function getTextMarics(stage: Stage, text: string) {
@@ -279,6 +265,7 @@ export default function setView(canvasDom: HTMLCanvasElement) {
     shape.cursor = 'pointer'
     shape.width = shapeWidth
     shape.height = fixedHeight
+    shape.addAttr('canDrag')
     setRoundRect(g, 0, 0, shapeWidth, fixedHeight, 10)
     g.setStrokeStyle({ color: '#555', lineWidth: 1 })
       .setFillStyle(color)
@@ -299,7 +286,7 @@ export default function setView(canvasDom: HTMLCanvasElement) {
       })
       grp.addChild(shape)
       shape.type = 'root'
-      shape.cursor = 'move'
+      shape.cursor = 'pointer'
 
       let lineShape = new Shape()
       lineShape.ignoreEvent = true
@@ -316,28 +303,10 @@ export default function setView(canvasDom: HTMLCanvasElement) {
     }
     return { el: shape, width: shapeWidth, height: fixedHeight }
   }
-  canvas.addEventListener('wheel', ev => {
-    console.log('wheel', ev.deltaX, ev.deltaY)
-    if (ev.deltaMode === ev.DOM_DELTA_PIXEL) {
-      if (ev.ctrlKey || ev.metaKey) {
-        // zoom
-        let { x, y } = stage.global2local(ev.clientX - 200, ev.clientY)
-        setAnchor(stage, x, y)
-
-        const ss = stage.scale * Math.pow(0.98, ev.deltaY)
-        stage.scale = ss
-        console.log(ss, ev.clientX, ev.clientY, x, y)
-      } else {
-        stage.x += -ev.deltaX
-        stage.y += -ev.deltaY
-      }
-      needsUpdate = true
-      ev.preventDefault()
-    }
-  })
 
   return () => {
-    cancelAnimationFrame(id)
+    gui.destroy()
+    ticker.dispose()
     window.removeEventListener('resize', start)
   }
 }
@@ -346,7 +315,8 @@ function walk(el: Element, fn: (el: Element) => void) {
   fn(el)
   ;(el as Group).children?.forEach(e => walk(e, fn))
 }
-function layout(node: Group | Shape) {
+
+function layoutForCompact(node: Group | Shape) {
   let level = 0
   // let totalWidth = 0
   let totalHeight = 0
@@ -503,6 +473,115 @@ function layout(node: Group | Shape) {
   }
 }
 
+function layoutForLoose(node: Group | Shape) {
+  let totalWidth = 0
+  let fixedHeight = 40
+  let lineShape!: Shape
+  let rootShape!: Shape
+  let maxHeight = -Infinity
+  const pts = [] as { uuid: number; el?: Shape }[]
+
+  if ((node as Group)?.children?.length) {
+    ;(node as Group)?.children.forEach((e: Shape | Group, i: number) => {
+      let count = i
+      const { width: elWidth, height: elHeight } = layoutForLoose(e)
+      if (e instanceof Shape) {
+        if (e.type === 'line') {
+          lineShape = e as Shape
+          return
+        } else if (e.type === 'root') {
+          rootShape = e as Shape
+          return
+        }
+      }
+
+      maxHeight = Math.max(maxHeight, elHeight)
+
+      if (count) {
+        if (lineShape) count--
+        if (rootShape) count--
+        if (count) {
+          totalWidth += MARGIN_X
+        }
+      }
+      e.x = totalWidth
+      totalWidth += elWidth
+      e.y = MARGIN_Y
+      // pts存局部坐标
+      if (e instanceof Group) {
+        const childRootShape = e.children.find(
+          item => (item as Shape).type === 'root'
+        ) as Shape
+        pts.push({
+          uuid: e.uuid,
+          el: childRootShape,
+        })
+      } else {
+        pts.push({ uuid: e.uuid, el: e })
+      }
+    })
+    if (rootShape) {
+      const { width = 0 } = rootShape
+      if (lineShape) {
+        // firstChildPoint
+        const fs = pts[0].el as Shape
+        let fp = fs.parent.local2local(rootShape.parent, fs.x, fs.y)
+        // lastChildPoint
+        const ls = pts[pts.length - 1].el as Shape
+        const { width: lsWidth = 0 } = ls
+        let lp = ls.parent.local2local(rootShape.parent, ls.x + lsWidth, ls.y)
+        rootShape.x = (lp.x - fp.x) / 2 + fp.x - width / 2
+        rootShape.y = 0
+      } else {
+      }
+    }
+    if (lineShape) {
+      const { points = [] } = lineShape
+      // 保留points引用
+      points.forEach((p, i) => {
+        if (i === 0) {
+          const { width = 0, height = 0 } = rootShape
+          // transform point
+          const center = { x: rootShape.x + width / 2, y: height }
+          const tp = rootShape.parent.local2local(
+            lineShape.parent,
+            center.x,
+            center.y
+          )
+          p.x = tp.x
+          p.y = tp.y
+        } else {
+          const { uuid } = p
+          const target = pts.find(item => item.uuid === uuid) as IPoint & {
+            el: Shape
+          }
+          const targetShape = target.el
+          const { width = 0 } = targetShape
+          const center = {
+            x: targetShape.x + width / 2,
+            y: targetShape.y,
+          }
+          // transform point
+          let tp = targetShape.parent.local2local(
+            lineShape.parent,
+            center.x,
+            center.y
+          )
+          p.x = tp.x
+          p.y = tp.y
+        }
+      })
+      drawLine(lineShape)
+    }
+    const totalHeight = maxHeight + MARGIN_Y
+
+    return { width: totalWidth, height: totalHeight }
+  }
+  node.x = 0
+  node.y = 0
+  return { width: (node as Shape).width ?? 0, height: fixedHeight }
+}
+
 function drawLine(shape: Shape, clear = true) {
   const { points = [] } = shape
   if (points.length < 2) return
@@ -589,211 +668,16 @@ function setPosition(list: any, subroot: Group, type = 0) {
   }
 }
 
-function getBoundingBox(el: Element) {
-  // @ts-ignore
-  // window.aaa = getBoundingBox
-  const result = {
-    left: Infinity,
-    right: -Infinity,
-    top: Infinity,
-    bottom: -Infinity,
-  }
-  doGetBoundingBox(el)
-  return result
-
-  function doGetBoundingBox(el: Element) {
-    if (el instanceof Group) {
-      ;(el as Group).children.forEach(child => {
-        doGetBoundingBox(child)
-      })
-    } else {
-      const coor1 = el.parent?.local2local(root, el.x, el.y) as {
-        x: number
-        y: number
-      }
-      const coor2 = el.parent?.local2local(
-        root,
-        el.x + ((el as Shape)?.width ?? 0),
-        el.y + ((el as Shape)?.height ?? 0)
-      ) as { x: number; y: number }
-      Object.assign(
-        result,
-        addBoundingBox(result, {
-          left: coor1.x,
-          right: coor2.x,
-          top: coor1.y,
-          bottom: coor2.y,
-        })
-      )
-    }
-  }
-  function addBoundingBox(
-    a: { left: number; right: number; top: number; bottom: number },
-    b: { left: number; right: number; top: number; bottom: number }
-  ) {
-    return {
-      left: Math.min(a.left, b.left),
-      right: Math.max(a.right, b.right),
-      top: Math.min(a.top, b.top),
-      bottom: Math.max(a.bottom, b.bottom),
-    }
-  }
-}
-function getBackgroundData(
-  sw: number,
-  sh: number,
-  dw: number,
-  dh: number,
-  isContain = true
-) {
-  const sr = sw / sh
-  const dr = dw / dh
-
-  let scale
-  if (isContain) {
-    scale = sr > dr ? dw / sw : dh / sh
-  } else {
-    scale = sr > dr ? dh / sh : dw / sw
-  }
-
-  return {
-    scale,
-    x: (dw - sw * scale) / 2,
-    y: (dh - sh * scale) / 2,
-  }
-}
-var boxShape = new Shape()
-function adjustPosition(
-  opt = {} as {
-    padding?: number[] | number
-    paddingLeft?: number
-    paddingTop?: number
-    paddingRight?: number
-    paddingBottom?: number
-  }
-) {
-  const boundingBox = getBoundingBox(root)
-  // @ts-ignore
-  window.boundingBox = boundingBox
-  // boxShape.graphics
-  //   .clear()
-  //   .setStrokeStyle({ lineWidth: 1, color: 'red' })
-  //   .moveTo(boundingBox.left, boundingBox.top)
-  //   .lineTo(boundingBox.right, boundingBox.top)
-  //   .lineTo(boundingBox.right, boundingBox.bottom)
-  //   .lineTo(boundingBox.left, boundingBox.bottom)
-  //   .closePath()
-  //   .stroke()
-  // ;(nodeTree as Group).addChild(boxShape)
-
-  let { padding, paddingLeft, paddingTop, paddingRight, paddingBottom } = opt
-
-  if (!Array.isArray(padding)) {
-    padding = Array(4).fill(typeof padding === 'number' ? padding : 0)
-  }
-
-  paddingTop = paddingTop ?? padding[0] ?? 0
-  paddingRight = paddingRight ?? padding[1] ?? 0
-  paddingBottom = paddingBottom ?? padding[2] ?? 0
-  paddingLeft = paddingLeft ?? padding[3] ?? 0
-
-  const sw = boundingBox.right - boundingBox.left // source width
-  const sh = boundingBox.bottom - boundingBox.top // source height
-  const dw = canvas.offsetWidth - paddingLeft - paddingRight // destination width
-  const dh = canvas.offsetHeight - paddingTop - paddingBottom // destination height
-
-  const { scale, x, y } = getBackgroundData(sw, sh, dw, dh)
-
-  ease(root, {
-    x: x + paddingLeft,
-    y: y + paddingTop,
-
-    scale,
-    onUpdate: () => (needsUpdate = true),
-  })
-
-  ease(stage, {
-    x: 0,
-    y: 0,
-    scale: 1,
-    regX: 0,
-    regY: 0,
-    onUpdate: () => (needsUpdate = true),
-  })
-}
-function update(stage: Stage) {
-  if (needsUpdate) {
-    stage.update()
-    needsUpdate = false
-  }
-  id = requestAnimationFrame(() => update(stage))
-}
-
 export function resort() {
-  let srcMap = {} as Record<string, { x: number; y: number }>
-  walk(root, (item: Element) => {
-    if (item === root) return
-
-    let src: Record<string, number>
-    srcMap[item.uuid] = src = { x: item.x, y: item.y }
-    if ((item as Shape).type === 'line') {
-      const { points = [] } = item as Shape
-      points.forEach((p, i) => {
-        src['x' + i] = p.x
-        src['y' + i] = p.y
-      })
-    }
-
-    item.x = item.y = 0
-  })
-  doResort(root)
-  layout(root)
-  adjustPosition({ padding: centerConfig })
-  needsUpdate = true
-  let dstMap = {} as Record<string, Shape | Group>
-  walk(root, (item: Element) => {
-    let dst: Record<string, any>
-    dstMap[item.uuid] = dst = item as Shape | Group
-    if ((item as Shape).type === 'line') {
-      const { points = [] } = item as Shape
-      points.forEach((p, index) => {
-        dst['x' + index] = p.x
-        dst['y' + index] = p.y
-      })
-    }
-  })
-
-  Object.keys(srcMap).forEach(key => {
-    const src = srcMap[key]
-    const dst = dstMap[key]
-
-    if ((dst as Shape)?.type === 'line') {
-      // @ts-ignore
-      dst.onUpdate = (obj: Record<string, number>) => {
-        needsUpdate = true
-        const pts = (dst as Shape).points as { x: number; y: number }[]
-        Object.keys(obj).forEach(k => {
-          const key = k.slice(0, 1) as 'x' | 'y'
-          const index = +k.slice(1)
-
-          if (pts[index]) {
-            pts[index][key] = obj[k] as number
-          } else {
-            pts[index] = {} as { x: number; y: number }
-            pts[index][key] = obj[k] as number
-          }
-        })
-        drawLine(dst as Shape)
+  layoutAndAnimate({
+    layout: () => {
+      doResort(root)
+      if (isCompact) {
+        layoutForCompact(root)
+      } else {
+        layoutForLoose(root)
       }
-    } else {
-      // @ts-ignore
-      dst.onUpdate = (obj: { x: number; y: number }) => {
-        dst.x = obj.x
-        dst.y = obj.y
-        needsUpdate = true
-      }
-    }
-    ease(src, dst)
+    },
   })
 
   function doResort(tree: Group | Shape) {
@@ -823,11 +707,177 @@ export function resort() {
   }
 }
 
-export function reset() {
-  needsUpdate = true
+function reset() {
+  ticker.needsUpdate = true
   Object.keys(dataMap).forEach(id => {
     const { src, dst } = dataMap[id as any]
     ease(src, dst)
   })
-  adjustPosition({ padding: centerConfig })
+  fixTreePosition()
+}
+
+function fixTreePosition() {
+  adjustPosition(
+    canvas,
+    root,
+    { padding: centerConfig },
+    (x: number, y: number, scale: number) => {
+      ease(root, {
+        x,
+        y,
+        scale,
+        onUpdate: () => (ticker.needsUpdate = true),
+      })
+      ease(stage, {
+        x: 0,
+        y: 0,
+        scale: 1,
+        regX: 0,
+        regY: 0,
+        onUpdate: () => (ticker.needsUpdate = true),
+      })
+    }
+  )
+}
+
+function collectResetData() {
+  walk(stage, el => {
+    if ((el as Shape)?.type === 'line') {
+      const dst: Record<string, number | Function> = {}
+      const src: Record<string, number> = {}
+      const { points = [] } = el as Shape
+      points.forEach((p, i) => {
+        dst['x' + i] = p.x
+        dst['y' + i] = p.y
+        src['x' + i] = p.x
+        src['y' + i] = p.y
+
+        let x = p.x
+        let y = p.y
+        Object.defineProperties(p, {
+          x: {
+            set: (v: number) => {
+              src['x' + i] = x = v
+            },
+            get: () => x,
+          },
+          y: {
+            set: (v: number) => {
+              src['y' + i] = y = v
+            },
+            get: () => y,
+          },
+        })
+      })
+
+      dst.onUpdate = (obj: Record<string, number>) => {
+        ticker.needsUpdate = true
+        const pts = (el as Shape).points as { x: number; y: number }[]
+        Object.keys(obj).forEach(k => {
+          const key = k.slice(0, 1) as 'x' | 'y'
+          const index = +k.slice(1)
+          if (pts[index]) {
+            pts[index][key] = obj[k] as number
+          } else {
+            pts[index] = {} as { x: number; y: number }
+            pts[index][key] = obj[k] as number
+          }
+        })
+        drawLine(el as Shape)
+      }
+
+      dataMap[el.uuid] = {
+        src,
+        dst,
+      }
+    } else {
+      dataMap[el.uuid] = {
+        src: el,
+        dst: {
+          x: el.x,
+          y: el.y,
+        },
+      }
+    }
+  })
+}
+
+function layoutAndAnimate(opt?: {
+  start?: Function
+  layout?: Function
+  end?: Function
+}) {
+  const { start, layout, end } = opt as {
+    start: Function
+    layout: Function
+    end: Function
+  }
+  start && start()
+  if (typeof layout !== 'function') return
+
+  let srcMap = {} as Record<string, { x: number; y: number }>
+  walk(root, (item: Element) => {
+    if (item === root) return
+
+    let src: Record<string, number>
+    srcMap[item.uuid] = src = { x: item.x, y: item.y }
+    if ((item as Shape).type === 'line') {
+      const { points = [] } = item as Shape
+      points.forEach((p, i) => {
+        src['x' + i] = p.x
+        src['y' + i] = p.y
+      })
+    }
+
+    item.x = item.y = 0
+  })
+
+  layout()
+  fixTreePosition()
+  let dstMap = {} as Record<string, Shape | Group>
+  walk(root, (item: Element) => {
+    let dst: Record<string, any>
+    dstMap[item.uuid] = dst = item as Shape | Group
+    if ((item as Shape).type === 'line') {
+      const { points = [] } = item as Shape
+      points.forEach((p, index) => {
+        dst['x' + index] = p.x
+        dst['y' + index] = p.y
+      })
+    }
+  })
+
+  Object.keys(srcMap).forEach(key => {
+    const src = srcMap[key]
+    const dst = dstMap[key]
+
+    if ((dst as Shape)?.type === 'line') {
+      // @ts-ignore
+      dst.onUpdate = (obj: Record<string, number>) => {
+        ticker.needsUpdate = true
+        const pts = (dst as Shape).points as { x: number; y: number }[]
+        Object.keys(obj).forEach(k => {
+          const key = k.slice(0, 1) as 'x' | 'y'
+          const index = +k.slice(1)
+
+          if (pts[index]) {
+            pts[index][key] = obj[k] as number
+          } else {
+            pts[index] = {} as { x: number; y: number }
+            pts[index][key] = obj[k] as number
+          }
+        })
+        drawLine(dst as Shape)
+      }
+    } else {
+      // @ts-ignore
+      dst.onUpdate = (obj: { x: number; y: number }) => {
+        dst.x = obj.x
+        dst.y = obj.y
+        ticker.needsUpdate = true
+      }
+    }
+    ease(src, dst)
+  })
+  end && end()
 }

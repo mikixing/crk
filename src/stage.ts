@@ -23,32 +23,40 @@ enum STATE {
 
 export default class Stage extends Group {
   public readonly root = true
-  public canvas: HTMLCanvasElement
   public ctx: CanvasRenderingContext2D
   public offCtx = document.createElement('canvas').getContext('2d') // offline ctx
   public width: number
   public height: number
   public domStyle: CSSStyleDeclaration
 
-  public mouseMoveOutside: boolean
+  public mouseMoveOutside = true
 
   private state: STATE = STATE.IDLE
   private mousemoveDomEvent: MouseEvent = null
   private hasPressEvent = false
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, bindEvent?: boolean) {
     super()
+
+    this.setCanvas(canvas, bindEvent)
+    this.offCtx.canvas.width = 1
+    this.offCtx.canvas.height = 1
+  }
+
+  public get canvas() {
+    return this.ctx?.canvas
+  }
+
+  public setCanvas(canvas: HTMLCanvasElement, bindEvent = true) {
+    if (canvas === this.canvas) return
 
     if (!(canvas instanceof HTMLCanvasElement) || !canvas)
       throw TypeError('canvas must be a HTMLCanvasElement!')
 
-    this.canvas = canvas
     this.ctx = canvas.getContext('2d')
-    this.offCtx.canvas.width = 1
-    this.offCtx.canvas.height = 1
     this.domStyle = getComputedStyle(this.canvas)
 
-    this.bindEvent()
+    bindEvent && this.bindEvent()
   }
 
   public clearCanvas() {

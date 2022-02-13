@@ -1,6 +1,6 @@
-import { Element, CrkSyntheticEvent } from '@mikixing/crk'
+import { Element, CrkSyntheticEvent, Group } from '@mikixing/crk'
 
-export function dragable(
+export default function dragable(
   el: Element,
   opt = {} as {
     onPressdown?: (ev: CrkSyntheticEvent) => void
@@ -11,9 +11,10 @@ export function dragable(
       dx: number,
       dy: number
     ) => number[]
-    onPressup: (ev: CrkSyntheticEvent) => void
+    onPressup?: (ev: CrkSyntheticEvent) => void
     target?: Element
-  }
+  },
+  isDelegated: boolean = false
 ) {
   let { target } = opt as { target: Element }
 
@@ -24,11 +25,12 @@ export function dragable(
   } else {
     target = el
   }
+  if (isDelegated) target = el
 
   let pressdownFn: (ev: CrkSyntheticEvent) => void
   let pressmoveFn: (ev: CrkSyntheticEvent) => void
   let pressupFn: (ev: CrkSyntheticEvent) => void
-  el.on(
+  el.addListener(
     'pressdown',
     (pressdownFn = (ev: CrkSyntheticEvent) => {
       // 考虑target可能是stage
@@ -37,9 +39,9 @@ export function dragable(
       const { x: sx, y: sy } = ev
       const { x: ox, y: oy } = el
       const parentMat = parent.getMatrix()
-      const sp = parentMat.transformPoint(sx, sy)
+      const sp = parentMat.transformPoint(sx, sy) // start point
       opt?.onPressdown?.(ev)
-      target.on(
+      target.addListener(
         'pressmove',
         (pressmoveFn = (ev: CrkSyntheticEvent) => {
           const { x: cx, y: cy } = ev // current x, current y
@@ -61,17 +63,17 @@ export function dragable(
           target.y = y
         })
       )
-      target.on(
+      target.addListener(
         'pressup',
         (pressupFn = (ev: CrkSyntheticEvent) => {
-          target.off('pressmove', pressmoveFn)
-          target.off('pressup', pressupFn)
+          target.removeListener('pressmove', pressmoveFn)
+          target.removeListener('pressup', pressupFn)
           opt?.onPressup?.(ev)
         })
       )
     })
   )
-  return () => el.off('pressdown', pressdownFn)
+  return () => el.removeListener('pressdown', pressdownFn)
 }
 
 // 判断a是否是b的父元素

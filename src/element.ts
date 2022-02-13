@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events'
-import { Stage } from '.'
 import Matrix, { deg2rad } from './lib/Matrix'
 import { SyntheticEvent } from './lib/SyntheticEvent'
 import { TCursor } from './constant/index'
+import { Shape, Stage } from '.'
 
 export interface Transform {
   x: number
@@ -54,52 +54,62 @@ export default abstract class Element
   public parent: Element | null
   public ignoreEvent = false
   public rect?: { x: number; y: number; width: number; height: number }
-  public cursor: TCursor = 'default'
+  public cursor: TCursor | string = 'default'
 
   private _scaleX: number
   private _scaleY: number
   private _eventRect: Rectangle = null
+  private _attrMap = {} as Record<string, boolean>
 
   protected cacheData: CacheData = null
 
   protected abstract doUpdate(ctx: CanvasRenderingContext2D): void
 
-  get scaleX() {
+  public get scaleX() {
     return this._scaleX ?? this.scale
   }
 
-  set scaleX(v) {
+  public set scaleX(v) {
     this._scaleX = v
   }
 
-  get scaleY() {
+  public get scaleY() {
     return this._scaleY ?? this.scale
   }
 
-  set scaleY(v) {
+  public set scaleY(v) {
     this._scaleY = v
   }
 
-  setTransform(ctx: CanvasRenderingContext2D) {
+  public get attrMap() {
+    return this._attrMap
+  }
+
+  public setTransform(ctx: CanvasRenderingContext2D) {
     ctx.globalAlpha *= this.alpha
     const { a, b, c, d, e, f } = this.getMatrix()
     ctx.transform(a, b, c, d, e, f)
   }
 
-  set(opt?: Partial<Transform & { alpha: number; visible: boolean }>) {
+  public set(opt?: Partial<Transform & { alpha: number; visible: boolean }>) {
     opt && Object.assign(this, opt)
   }
 
-  setEventRect(x: number, y: number, width: number, height: number): Rectangle {
+  public setEventRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): Rectangle {
     this._eventRect = { x, y, width, height }
     return this._eventRect
   }
 
-  getEventRect(): Rectangle | null | undefined {
+  public getEventRect(): Rectangle | null | undefined {
     return this._eventRect
   }
 
-  cache(x: number, y: number, width: number, height: number, dpr = 1) {
+  public cache(x: number, y: number, width: number, height: number, dpr = 1) {
     const canvas = document.createElement('canvas')
     canvas.width = width * dpr
     canvas.height = height * dpr
@@ -113,7 +123,8 @@ export default abstract class Element
     }
     this.updateCache()
   }
-  updateCache() {
+
+  public updateCache() {
     if (!this.cacheData) throw new Error('please use cache() first!')
     const { canvas, x, y, width, height, dpr } = this.cacheData
     this.cacheData.notCacheCanvas = true
@@ -133,7 +144,7 @@ export default abstract class Element
     return
   }
 
-  getMatrix() {
+  public getMatrix() {
     const {
       x = 0,
       y = 0,
@@ -182,5 +193,46 @@ export default abstract class Element
   public local2local(el: Element, x: number, y: number) {
     const p = this.local2global(x, y)
     return el.global2local(p.x, p.y)
+  }
+
+  public addAttr(...names: string[]) {
+    names.forEach(name => {
+      this._attrMap[name] = true
+    })
+  }
+
+  public removeAttr(...names: string[]) {
+    names.forEach(name => {
+      delete this._attrMap[name]
+    })
+  }
+
+  public hasAttr(name: string) {
+    const names = name?.trim().split(/\s+/) ?? []
+    return names.some(name => name in this._attrMap)
+  }
+
+  public delegate(
+    type: string,
+    attr: string,
+    fn: (ev: SyntheticEvent) => void
+  ) {
+    let handler: (...args: any[]) => void
+    this.on(
+      type,
+      (handler = (ev: SyntheticEvent) => {
+        let el = ev.target
+        const currentTarget = ev.currentTarget
+        do {
+          if (el.hasAttr(attr)) {
+            ev.currentTarget = el
+            fn.call(el, ev)
+          }
+        } while ((el = el.parent) && el !== this)
+        ev.currentTarget = currentTarget
+      })
+    )
+
+    return () => this.off(type, handler)
   }
 }

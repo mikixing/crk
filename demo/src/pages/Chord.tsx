@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Stage, Group, Shape as BaseShape, deg2rad } from '@mikixing/crk'
 import { ease } from '@mikixing/transition'
-import { initCanvas, getRoundCircle, Vector } from '../util'
+import { initCanvas, getRoundCircle, Vector, adjustPosition } from '../util'
 
 class Shape extends BaseShape {
   public type?: string = ''
@@ -9,10 +9,10 @@ class Shape extends BaseShape {
 
 const data = {
   title: {
-    text: '2021年国际旅游情况',
-    font: '20px PingFangSC-Regular',
-    color: '#333',
-    top: 70,
+    text: '',
+    font: '16px PingFangSC-Regular',
+    color: '#6cf',
+    top: 0,
   },
   labels: ['北京', '上海', '深圳', '广州', '长沙'],
   weights: [400, 200, 300, 100, 200, 132, 110, 100],
@@ -23,12 +23,12 @@ const data = {
     [30, 40, 80, 20, 40, 34, 8],
     [30, 40, 80, 20, 40, 20, 10],
   ],
-  radius: 200,
+  radius: 300,
   thickness: 20,
   gap: 3, // 圆弧间的间隔角度
   style: {
-    font: '20px PingFangSC-Regular',
-    fontColor: '#333',
+    font: '16px PingFangSC-Regular',
+    fontColor: '#666',
   },
   bordered: true,
 }
@@ -55,6 +55,9 @@ export default function Diagram() {
     const [width, height] = initCanvas(canvas)
 
     const stage = new Stage(canvas)
+    const containerGrp = new Group()
+    containerGrp.y = 100
+    stage.addChild(containerGrp)
 
     const { title, labels, radius, thickness, gap, style, bordered } = data
 
@@ -90,7 +93,7 @@ export default function Diagram() {
       arcList[i] = {
         start,
         angle,
-        ca: start + angle / 2,
+        ca: start + angle / 2, // current angle
         label: labels[i],
         end,
         idx,
@@ -101,8 +104,9 @@ export default function Diagram() {
 
     stage.enableMouseOver(10)
     // 绘制
-    drawTitle()
+    title.text && drawTitle()
     drawContent()
+
     update()
 
     function update() {
@@ -119,79 +123,56 @@ export default function Diagram() {
       ctx.font = title.font
       const textSizeObj = ctx?.measureText(title.text)
       g.setTextStyle({ font: title.font })
-        .fillText(title.text, 0, 0)
         .setFillStyle(title.color)
+        .fillText(title.text, 0, 0)
         .fill()
-      stage.addChild(shape)
+      containerGrp.addChild(shape)
       ctx.restore()
 
-      shape.x = (width - textSizeObj.width) / 2
-      shape.y = title.top
+      shape.x = 20 //(width - textSizeObj.width) / 2
+      shape.y = 20 //title.top
     }
 
     function drawContent() {
       const grp = new Group()
-      stage.addChild(grp)
+      containerGrp.addChild(grp)
       grp.x = origin.x
-      grp.y = origin.y
+      grp.y = 300
 
       let timer: NodeJS.Timeout
 
       grp.on('mouseover', ev => {
         const { target } = ev
-        clearTimeout(timer)
-        timer = setTimeout(() => {
-          grp.children.forEach(child => {
-            if (target.type === 'base' || target.type === 'text') {
-              if ((child as Group).getChildIndex(target) > -1) return
+        grp.children.forEach(child => {
+          if (target.type === 'base' || target.type === 'text') {
+            if ((child as Group).getChildIndex(target) > -1) return
+          }
+          const children = (child as Group).children as Shape[]
+          children.forEach((item: Shape) => {
+            if (
+              item !== target &&
+              item.type !== 'base' &&
+              item.type !== 'text'
+            ) {
+              ease(item, { alpha: 0.2, duration: 300 })
             }
-            const children = (child as Group).children as Shape[]
-            children.forEach((item: Shape) => {
-              if (
-                item !== target &&
-                item.type !== 'base' &&
-                item.type !== 'text'
-              ) {
-                item.alpha = 0
-                // ease(
-                //   { alpha: 1 },
-                //   {
-                //     alpha: 0,
-                //     onUpdate: obj => {
-                //       item.alpha = obj.alpha
-                //     },
-                //   }
-                // )
-              }
-            })
           })
-        }, 300)
+        })
       })
       grp.on('mouseout', ev => {
         const { target } = ev
         clearTimeout(timer)
-        timer = setTimeout(() => {
-          grp.children.forEach(child => {
-            const children = (child as Group).children as Shape[]
-            children.forEach((item: Shape) => {
-              item.alpha = 1
-              // ease(
-              //   { alpha: item.alpha },
-              //   {
-              //     alpha: 1,
-              //     onUpdate: obj => {
-              //       item.alpha = obj.alpha
-              //     },
-              //   }
-              // )
-            })
+        grp.children.forEach(child => {
+          const children = (child as Group).children as Shape[]
+          children.forEach((item: Shape) => {
+            ease(item, { alpha: 1, duration: 300 })
           })
-        }, 300)
+        })
       })
 
       links.reduce((lastAngle, link, i) => {
         const color = `hsl(${((i / len) * 360) | 0}, 50%, 60%)`
-        const color2 = `hsla(${((i / len) * 360) | 0}, 50%, 60%, 70%)`
+        const color2 = `hsla(${((i / len) * 360) | 0}, 50%, 60%, 80%)`
         const color3 = `hsl(${((i / len) * 360) | 0}, 50%, 40%)`
 
         // 权重归一化
@@ -341,10 +322,7 @@ export default function Diagram() {
             textSizeObj
 
           const v = new Vector(cx, cy)
-          const vv = v
-            .normalize()
-            .scale(labelWidth / 2)
-            .add(v)
+          const vv = v.normalize().scale(labelWidth).add(v)
 
           g.beginPath()
             .setFillStyle(fontColor)

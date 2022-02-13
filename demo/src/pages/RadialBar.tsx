@@ -2,18 +2,15 @@ import React, { useEffect, useRef } from 'react'
 import { Stage, Shape, Group } from '@mikixing/crk'
 import { linear, easeIn, easeOut, ease, collision } from '@mikixing/transition'
 import { initCanvas, getRoundCircle } from '../util'
-import { useContentRef } from '../App'
 
 let needsUpdate = false
 let id: number
 export default function RadialBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const contentRef = useContentRef()
 
   useEffect(() => {
     needsUpdate = true
-    const dom = contentRef?.current as any as HTMLDivElement
-    return initStage(canvasRef.current as HTMLCanvasElement, dom)
+    return initStage(canvasRef.current as HTMLCanvasElement)
   }, [])
 
   useEffect(() => {
@@ -27,7 +24,7 @@ export default function RadialBar() {
   )
 }
 
-function initStage(canvas: HTMLCanvasElement, content: HTMLDivElement) {
+function initStage(canvas: HTMLCanvasElement) {
   const data = [
     { name: 'Netflix', value: 0.82 },
     { name: 'Other', value: 0.73 },
@@ -39,11 +36,7 @@ function initStage(canvas: HTMLCanvasElement, content: HTMLDivElement) {
   const maxAngle = 270
 
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-  const [width, height] = initCanvas(
-    canvas,
-    content.offsetWidth,
-    content.offsetHeight
-  )
+  const [width, height] = initCanvas(canvas)
 
   const stage = new Stage(canvas)
   const grp = new Group()
@@ -56,7 +49,7 @@ function initStage(canvas: HTMLCanvasElement, content: HTMLDivElement) {
   stage.addChild(textGrp)
 
   const radius = 20
-  const gap = 40
+  const gap = 35
   const len = data.length
   data.forEach((item, i) => {
     const shape = new Shape()

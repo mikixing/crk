@@ -30,7 +30,7 @@ export default function dragable(
   let pressdownFn: (ev: CrkSyntheticEvent) => void
   let pressmoveFn: (ev: CrkSyntheticEvent) => void
   let pressupFn: (ev: CrkSyntheticEvent) => void
-  el.addListener(
+  el.on(
     'pressdown',
     (pressdownFn = (ev: CrkSyntheticEvent) => {
       // 考虑target可能是stage
@@ -38,10 +38,10 @@ export default function dragable(
       // start x, start y
       const { x: sx, y: sy } = ev
       const { x: ox, y: oy } = el
-      const parentMat = parent.getMatrix()
+      const parentMat = parent.getWorldMatrix().invert()
       const sp = parentMat.transformPoint(sx, sy) // start point
       opt?.onPressdown?.(ev)
-      target.addListener(
+      target.on(
         'pressmove',
         (pressmoveFn = (ev: CrkSyntheticEvent) => {
           const { x: cx, y: cy } = ev // current x, current y
@@ -58,12 +58,11 @@ export default function dragable(
             x = ox + dx
             y = oy + dy
           }
-
           target.x = x
           target.y = y
         })
       )
-      target.addListener(
+      target.on(
         'pressup',
         (pressupFn = (ev: CrkSyntheticEvent) => {
           target.removeListener('pressmove', pressmoveFn)

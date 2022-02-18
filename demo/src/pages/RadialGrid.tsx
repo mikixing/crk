@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Stage, Shape, Group, deg2rad, Ticker } from '@mikixing/crk'
-import { initCanvas, getRoundCircle, Vector } from '../util'
+import { getRoundCircle, Vector, setWheel, getBackgroundData } from '../util'
+import { layout, stdStage } from '../common'
 
 export default function RadialBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -9,7 +10,11 @@ export default function RadialBar() {
     return initStage(canvasRef.current as HTMLCanvasElement)
   }, [])
 
-  return <canvas ref={canvasRef}></canvas>
+  return (
+    <layout.CanvasBox>
+      <canvas ref={canvasRef}></canvas>
+    </layout.CanvasBox>
+  )
 }
 
 function initStage(canvas: HTMLCanvasElement) {
@@ -22,14 +27,41 @@ function initStage(canvas: HTMLCanvasElement) {
   ]
   const maxValue = Math.max(...data.map(item => item.value))
   const maxAngle = 270
-  const ticker = new Ticker()
 
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-  const [width, height] = initCanvas(canvas)
-
   const stage = new Stage(canvas)
-
   stage.enableMouseOver()
+
+  const container = new Group()
+  stage.addChild(container)
+
+  let { width, height, ticker, dispose } = stdStage(stage, {
+    onResize: (ev, w, h) => {
+      width = w
+      height = h
+      ticker.needsUpdate = true
+      container.set(
+        getBackgroundData(720, 700, width, height, {
+          paddingTop: 20,
+          paddingBottom: 20,
+        })
+      )
+    },
+  })
+  container.set(
+    getBackgroundData(720, 700, width, height, {
+      paddingTop: 20,
+      paddingBottom: 20,
+    })
+  )
+  ticker.needsUpdate = true
+  ticker.on('frame', () => {
+    stage.update()
+  })
+
+  const removeWheel = setWheel(container, () => {
+    ticker.needsUpdate = true
+  })
 
   const radius = 50
   const gap = 50
@@ -37,10 +69,10 @@ function initStage(canvas: HTMLCanvasElement) {
 
   {
     const grp = new Group()
-    stage.addChild(grp)
+    container.addChild(grp)
 
-    grp.x = width / 2
-    grp.y = height / 2
+    grp.x = 360
+    grp.y = height / 2 - 30
 
     const arr = new Array(len + 1).fill(1)
     arr.forEach((item, i) => {
@@ -85,10 +117,10 @@ function initStage(canvas: HTMLCanvasElement) {
 
   {
     const grp = new Group()
-    stage.addChild(grp)
+    container.addChild(grp)
 
-    grp.x = width / 2
-    grp.y = height / 2
+    grp.x = 360
+    grp.y = height / 2 - 30
     grp.rotation = -90
 
     grp.delegate('mouseover', 'bar', ev => {
@@ -131,11 +163,8 @@ function initStage(canvas: HTMLCanvasElement) {
     })
   }
 
-  ticker.on('frame', () => {
-    stage.update()
-  })
-
   return () => {
-    ticker.dispose()
+    dispose()
+    removeWheel()
   }
 }

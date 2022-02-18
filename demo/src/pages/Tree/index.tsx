@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { layout } from '../../common'
 import setTree from './tree'
 
 export default function Tree() {
@@ -10,6 +11,11 @@ export default function Tree() {
   }, [canvasRef])
 
   return (
-    <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }}></canvas>
+    <layout.CanvasBox>
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100%', height: '100%' }}
+      ></canvas>
+    </layout.CanvasBox>
   )
 }

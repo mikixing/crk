@@ -5,11 +5,15 @@ import {
   Shape as BaseShape,
   Element,
   CrkSyntheticEvent,
-  Ticker,
 } from '@mikixing/crk'
 import { ease } from '@mikixing/transition'
 
-import { adjustPosition, initCanvas, setAnchor, setRoundRect } from '../../util'
+import {
+  BoundingBox,
+  getBackgroundData,
+  setRoundRect,
+  setWheel,
+} from '../../util'
 import data from './data2'
 import { stdStage } from '../../common'
 
@@ -35,41 +39,51 @@ class Shape extends BaseShape {
 }
 
 const MARGIN_X = 20 // 子节点之间的水平衡距离
-const MARGIN_Y = 400 // 父子节点的垂直距离
-const centerConfig = [0, 0, 0, 0]
+const MARGIN_Y = 300 // 父子节点的垂直距离
 
 export default function setTree(canvasDom: HTMLCanvasElement) {
-  let id: number
-  let dataMap = {} as Record<
+  let dataMap = ((window as any).map = {} as Record<
     number,
     {
       src: Record<string, number> | Element
       dst: Record<string, number | Function>
     }
-  >
+  >)
   let canvas: HTMLCanvasElement
   let stage: Stage
-  let root: Group | Shape
+  let root: Group
+
   let isCompact = true
-  let ticker: Ticker
-  let stdObj: {
-    ticker: Ticker
-    dispose: () => void
-  }
 
   const gui = new GUI()
   gui.width = 100
+  const d = {
+    reset,
+    compact: true,
+    resort() {
+      ticker.needsUpdate = true
+      layoutAndAnimate({
+        layout: root => {
+          resort(root)
+          if (isCompact) {
+            layoutForCompact(root)
+          } else {
+            layoutForLoose(root)
+          }
+        },
+      })
+    },
+  }
 
-  const d = { reset, resort, compact: true }
-
-  gui.add(d, 'resort')
-  gui.add(d, 'reset')
+  gui.add(d, 'resort').name('随机排列')
+  gui.add(d, 'reset').name('还原')
   gui
     .add(d, 'compact')
     .name('紧凑型')
     .onChange(v => {
+      ticker.needsUpdate = true
       layoutAndAnimate({
-        layout: () => {
+        layout: root => {
           if (v) {
             layoutForCompact(root)
           } else {
@@ -82,26 +96,254 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
   canvas = canvasDom
   ;(window as any).stage = stage = new Stage(canvas)
   stage.mouseMoveOutside = true
+  // @ts-ignore
+  // window.stage = stage
+  const { el: rootNode } = initTree(stage, data, 0)
+  ;(window as any).root = root = rootNode as Group
+  ;(stage as Stage).addChild(rootNode)
+  ;(stage as Stage).enableMouseOver(10)
 
-  stdObj = stdStage({
-    stage,
+  const bbShape = new Shape()
+  root.addChild(bbShape)
+
+  let { width, height, ticker, dispose } = stdStage(stage, {
+    onResize: (ev, w, h) => {
+      width = w
+      height = h
+
+      setContain(root, {
+        width,
+        height,
+      })
+
+      // 更新root节点目标值
+      dataMap[root.uuid].dst = {
+        x: root.x,
+        y: root.y,
+        scale: root.scale,
+      }
+
+      ticker.needsUpdate = true
+    },
   })
 
-  ticker = stdObj.ticker
+  const removeWheel = setWheel(stage, () => (ticker.needsUpdate = true))
 
   ticker.on('frame', () => {
     stage.update()
   })
 
-  // @ts-ignore
-  // window.stage = stage
-  const { el: rootNode } = initTree(stage, data, 0)
-  ;(window as any).root = root = rootNode
-  ;(stage as Stage).addChild(rootNode)
-  ;(stage as Stage).enableMouseOver(10)
+  layoutForCompact(root)
+  setContain(root, {
+    width,
+    height,
+  })
 
-  start()
-  window.addEventListener('resize', start)
+  collectResetData(root as Group)
+
+  // layoutAndAnimate({
+  //   layout: root => {
+  //     layoutForCompact(root)
+  //   },
+  //   afterLayout: root => {
+  //     collectResetData(root as Group)
+  //   },
+  // })
+
+  function reset() {
+    ticker.needsUpdate = true
+    Object.keys(dataMap).forEach(id => {
+      const { src, dst } = dataMap[id as any]
+      ease(src, dst)
+    })
+
+    ease(stage, {
+      x: 0,
+      y: 0,
+      scale: 1,
+      regX: 0,
+      regY: 0,
+      onUpdate: () => (ticker.needsUpdate = true),
+    })
+  }
+
+  function collectResetData(root: Group) {
+    walk(root, el => {
+      if ((el as Shape)?.type === 'line') {
+        const dst: Record<string, number | Function> = {}
+        const src: Record<string, number> = {}
+        const { points = [] } = el as Shape
+        points.forEach((p, i) => {
+          dst['x' + i] = p.x
+          dst['y' + i] = p.y
+          src['x' + i] = p.x
+          src['y' + i] = p.y
+
+          let x = p.x
+          let y = p.y
+          Object.defineProperties(p, {
+            x: {
+              set: (v: number) => {
+                src['x' + i] = x = v
+              },
+              get: () => x,
+            },
+            y: {
+              set: (v: number) => {
+                src['y' + i] = y = v
+              },
+              get: () => y,
+            },
+          })
+        })
+
+        dst.onUpdate = (obj: Record<string, number>) => {
+          ticker.needsUpdate = true
+          const pts = (el as Shape).points as { x: number; y: number }[]
+          Object.keys(obj).forEach(k => {
+            const key = k.slice(0, 1) as 'x' | 'y'
+            const index = +k.slice(1)
+            if (pts[index]) {
+              pts[index][key] = obj[k] as number
+            } else {
+              pts[index] = {} as { x: number; y: number }
+              pts[index][key] = obj[k] as number
+            }
+          })
+          drawLine(el as Shape)
+        }
+
+        dataMap[el.uuid] = {
+          src,
+          dst,
+        }
+      } else {
+        dataMap[el.uuid] = {
+          src: el,
+          dst: {
+            x: el.x,
+            y: el.y,
+            scale: el.scale,
+          },
+        }
+      }
+    })
+  }
+
+  function setContain(
+    node: Group,
+    opt = {} as {
+      width: number
+      height: number
+      padding?: number
+    }
+  ) {
+    const { width: dw, height: dh, padding = 20 } = opt
+
+    const bb = new BoundingBox(node)
+    const { width: sw, height: sh } = bb
+    const { x, y, scale } = getBackgroundData(sw, sh, dw, dh, {
+      padding,
+    })
+
+    // bbShape.x = x
+    // bbShape.y = y
+    // bbShape.scale = scale
+    // bbShape.graphics
+    //   .clear()
+    //   .rect(x, y, sw, sh)
+    //   .setStrokeStyle({ color: '#f70', lineWidth: 2 })
+    //   .stroke()
+
+    console.log(sw, sh, dw, dh, '-------', scale, bb)
+
+    node.x = x
+    node.y = y
+    node.scale = scale
+  }
+
+  function layoutAndAnimate(
+    opt = {} as {
+      layout?: (node: Group | Shape) => void
+      afterLayout?: (node: Group | Shape) => void
+    }
+  ) {
+    const { layout, afterLayout } = opt
+
+    if (typeof layout !== 'function') return
+
+    let srcMap = {} as Record<string, { x: number; y: number }>
+    walk(root, (item: Element) => {
+      let src: Record<string, number>
+      srcMap[item.uuid] = src = { x: item.x, y: item.y, scale: item.scale }
+      if ((item as Shape).type === 'line') {
+        const { points = [] } = item as Shape
+        points.forEach((p, i) => {
+          src['x' + i] = p.x
+          src['y' + i] = p.y
+        })
+      }
+
+      item.x = item.y = 0
+      item.scale = 1
+    })
+
+    layout(root)
+    setContain(root, {
+      width,
+      height,
+    })
+
+    // 收集初始化后数据
+    afterLayout?.(root)
+
+    walk(root, (item: Element) => {
+      if (!(item.uuid in srcMap)) return
+
+      let dst = {} as Record<string, any>
+      if ((item as Shape).type === 'line') {
+        const { points = [] } = item as Shape
+        points.forEach((p, index) => {
+          dst['x' + index] = p.x
+          dst['y' + index] = p.y
+        })
+
+        // @ts-ignore
+        dst.onUpdate = (obj: Record<string, number>) => {
+          ticker.needsUpdate = true
+          // const pts = (dst as Shape).points as { x: number; y: number }[]
+          Object.keys(obj).forEach(k => {
+            const key = k.slice(0, 1) as 'x' | 'y'
+            const index = +k.slice(1)
+
+            if (points[index]) {
+              points[index][key] = obj[k] as number
+            } else {
+              points[index] = {} as { x: number; y: number; uuid: string }
+              points[index][key] = obj[k] as number
+            }
+          })
+          drawLine(item as Shape)
+        }
+      } else {
+        dst = {
+          x: item.x,
+          y: item.y,
+          scale: item.scale,
+          onUpdate: (obj: Record<string, number>) => {
+            Object.assign(item, obj)
+            // item.x = obj.x
+            // item.y = obj.y
+            // item.scale = obj.scale
+            ticker.needsUpdate = true
+          },
+        }
+      }
+
+      ease(srcMap[item.uuid], dst)
+    })
+  }
+
   stage.delegate('pressdown', 'canDrag', (ev: CrkSyntheticEvent) => {
     ev.stopPropagation()
     ticker.needsUpdate = true
@@ -173,8 +415,10 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
               }
               // 第0个位置留给root节点
               let location = idx + 1 - counter
-              points[location].x = p0.x
-              points[location].y = p0.y
+              if (points[location]) {
+                points[location].x = p0.x
+                points[location].y = p0.y
+              }
             })
 
             drawLine(lineShape)
@@ -220,8 +464,10 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
                 const p0 = tmp.local2local(lineShape, (tmp.width ?? 0) / 2, 0)
                 // 第0个位置留给root节点
                 let location = idx + 1 - counter
-                points[location].x = p0.x
-                points[location].y = p0.y
+                if (points[location]) {
+                  points[location].x = p0.x
+                  points[location].y = p0.y
+                }
               })
               drawLine(lineShape)
             }
@@ -239,22 +485,12 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
     )
   })
 
-  function start() {
-    layoutAndAnimate({
-      layout: () => {
-        layoutForCompact(root)
-
-        collectResetData()
-      },
-    })
-  }
-
   function getTextMarics(stage: Stage, text: string) {
     return stage.ctx.measureText(text)
   }
 
   function initTree(stage: Stage, node: Node, level: number) {
-    const color = `hsl(${((level / 5) * 360) | 0}, 60%, 50%)`
+    const color = `hsl(${((level / 5) * 180) | 0}, 60%, 50%)`
 
     let shape = new Shape()
     let g = shape.graphics
@@ -306,8 +542,8 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
 
   return () => {
     gui.destroy()
-    ticker.dispose()
-    window.removeEventListener('resize', start)
+    dispose()
+    removeWheel()
   }
 }
 
@@ -321,6 +557,7 @@ function layoutForCompact(node: Group | Shape) {
   // let totalWidth = 0
   let totalHeight = 0
   let displayMap: any[] = []
+  const root = node
   doLayout(node, totalHeight, level, displayMap)
 
   function doLayout(
@@ -426,11 +663,12 @@ function layoutForCompact(node: Group | Shape) {
         displayMap[level] = { left: rootShape, right: rootShape, data }
 
         // 当子元素宽度不足时,子树根节点可能超出边界,需要重新适配位置
-        const coorX = rootShape.parent.local2local(
-          stage,
+        const { x: coorX } = rootShape.parent.local2local(
+          root,
           rootShape.x,
           rootShape.y
-        ).x
+        )
+
         if (coorX < 0) {
           rootShape.parent.x += Math.abs(coorX)
         }
@@ -609,10 +847,10 @@ function setPosition(list: any, subroot: Group, type = 0) {
   const len = list.length
   for (let i = 1; i < len; i++) {
     let currentItem = list[i]
-    _setCompare(currentItem, list.slice(0, i), subroot)
+    doSetCompare(currentItem, list.slice(0, i), subroot)
   }
 
-  function _setCompare(data: any, compareData: any, subroot: Group, type = 0) {
+  function doSetCompare(data: any, compareData: any, subroot: Group, type = 0) {
     data.forEach((item: any, i: number) => {
       let compareItem
       let len = compareData.length
@@ -652,7 +890,7 @@ function setPosition(list: any, subroot: Group, type = 0) {
             }
           }
           newData.forEach((childData: any, i: number) => {
-            _setCompare(childData, newCompareData, type ? subroot : parent, 1)
+            doSetCompare(childData, newCompareData, type ? subroot : parent, 1)
           })
         } else {
           if (difference > 0) {
@@ -668,216 +906,26 @@ function setPosition(list: any, subroot: Group, type = 0) {
   }
 }
 
-export function resort() {
-  layoutAndAnimate({
-    layout: () => {
-      doResort(root)
-      if (isCompact) {
-        layoutForCompact(root)
-      } else {
-        layoutForLoose(root)
-      }
-    },
-  })
+function resort(tree: Group | Shape) {
+  if (tree instanceof Shape) return
 
-  function doResort(tree: Group | Shape) {
-    if (tree instanceof Shape) return
-
-    let list = (tree as Group).children
-    const arr1 = list.filter(
-      item =>
-        (item as Shape)?.type === 'line' || (item as Shape)?.type === 'root'
-    )
-    const arr2 = list.filter(
-      item =>
-        (item as Shape)?.type !== 'line' && (item as Shape)?.type !== 'root'
-    )
-    let arr = arr2
-    if (arr2.length === 1 && arr2[0] instanceof Group) {
-      arr = arr2[0].children
-    }
-
-    arr.sort((a: Group | Shape, b: Group | Shape) => {
-      doResort(a)
-      doResort(b)
-      return Math.random() - 0.5
-    })
-    list.splice(0)
-    list.push(...arr1, ...arr2)
-  }
-}
-
-function reset() {
-  ticker.needsUpdate = true
-  Object.keys(dataMap).forEach(id => {
-    const { src, dst } = dataMap[id as any]
-    ease(src, dst)
-  })
-  fixTreePosition()
-}
-
-function fixTreePosition() {
-  adjustPosition(
-    canvas,
-    root,
-    { padding: centerConfig },
-    (x: number, y: number, scale: number) => {
-      ease(root, {
-        x,
-        y,
-        scale,
-        onUpdate: () => (ticker.needsUpdate = true),
-      })
-      ease(stage, {
-        x: 0,
-        y: 0,
-        scale: 1,
-        regX: 0,
-        regY: 0,
-        onUpdate: () => (ticker.needsUpdate = true),
-      })
-    }
+  let list = (tree as Group).children
+  const arr1 = list.filter(
+    item => (item as Shape)?.type === 'line' || (item as Shape)?.type === 'root'
   )
-}
-
-function collectResetData() {
-  walk(stage, el => {
-    if ((el as Shape)?.type === 'line') {
-      const dst: Record<string, number | Function> = {}
-      const src: Record<string, number> = {}
-      const { points = [] } = el as Shape
-      points.forEach((p, i) => {
-        dst['x' + i] = p.x
-        dst['y' + i] = p.y
-        src['x' + i] = p.x
-        src['y' + i] = p.y
-
-        let x = p.x
-        let y = p.y
-        Object.defineProperties(p, {
-          x: {
-            set: (v: number) => {
-              src['x' + i] = x = v
-            },
-            get: () => x,
-          },
-          y: {
-            set: (v: number) => {
-              src['y' + i] = y = v
-            },
-            get: () => y,
-          },
-        })
-      })
-
-      dst.onUpdate = (obj: Record<string, number>) => {
-        ticker.needsUpdate = true
-        const pts = (el as Shape).points as { x: number; y: number }[]
-        Object.keys(obj).forEach(k => {
-          const key = k.slice(0, 1) as 'x' | 'y'
-          const index = +k.slice(1)
-          if (pts[index]) {
-            pts[index][key] = obj[k] as number
-          } else {
-            pts[index] = {} as { x: number; y: number }
-            pts[index][key] = obj[k] as number
-          }
-        })
-        drawLine(el as Shape)
-      }
-
-      dataMap[el.uuid] = {
-        src,
-        dst,
-      }
-    } else {
-      dataMap[el.uuid] = {
-        src: el,
-        dst: {
-          x: el.x,
-          y: el.y,
-        },
-      }
-    }
-  })
-}
-
-function layoutAndAnimate(opt?: {
-  start?: Function
-  layout?: Function
-  end?: Function
-}) {
-  const { start, layout, end } = opt as {
-    start: Function
-    layout: Function
-    end: Function
+  const arr2 = list.filter(
+    item => (item as Shape)?.type !== 'line' && (item as Shape)?.type !== 'root'
+  )
+  let arr = arr2
+  if (arr2.length === 1 && arr2[0] instanceof Group) {
+    arr = arr2[0].children
   }
-  start && start()
-  if (typeof layout !== 'function') return
 
-  let srcMap = {} as Record<string, { x: number; y: number }>
-  walk(root, (item: Element) => {
-    if (item === root) return
-
-    let src: Record<string, number>
-    srcMap[item.uuid] = src = { x: item.x, y: item.y }
-    if ((item as Shape).type === 'line') {
-      const { points = [] } = item as Shape
-      points.forEach((p, i) => {
-        src['x' + i] = p.x
-        src['y' + i] = p.y
-      })
-    }
-
-    item.x = item.y = 0
+  arr.sort((a: Group | Shape, b: Group | Shape) => {
+    resort(a)
+    resort(b)
+    return Math.random() - 0.5
   })
-
-  layout()
-  fixTreePosition()
-  let dstMap = {} as Record<string, Shape | Group>
-  walk(root, (item: Element) => {
-    let dst: Record<string, any>
-    dstMap[item.uuid] = dst = item as Shape | Group
-    if ((item as Shape).type === 'line') {
-      const { points = [] } = item as Shape
-      points.forEach((p, index) => {
-        dst['x' + index] = p.x
-        dst['y' + index] = p.y
-      })
-    }
-  })
-
-  Object.keys(srcMap).forEach(key => {
-    const src = srcMap[key]
-    const dst = dstMap[key]
-
-    if ((dst as Shape)?.type === 'line') {
-      // @ts-ignore
-      dst.onUpdate = (obj: Record<string, number>) => {
-        ticker.needsUpdate = true
-        const pts = (dst as Shape).points as { x: number; y: number }[]
-        Object.keys(obj).forEach(k => {
-          const key = k.slice(0, 1) as 'x' | 'y'
-          const index = +k.slice(1)
-
-          if (pts[index]) {
-            pts[index][key] = obj[k] as number
-          } else {
-            pts[index] = {} as { x: number; y: number }
-            pts[index][key] = obj[k] as number
-          }
-        })
-        drawLine(dst as Shape)
-      }
-    } else {
-      // @ts-ignore
-      dst.onUpdate = (obj: { x: number; y: number }) => {
-        dst.x = obj.x
-        dst.y = obj.y
-        ticker.needsUpdate = true
-      }
-    }
-    ease(src, dst)
-  })
-  end && end()
+  list.splice(0)
+  list.push(...arr1, ...arr2)
 }

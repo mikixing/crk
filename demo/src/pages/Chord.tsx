@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { Stage, Group, Shape as BaseShape, deg2rad } from '@mikixing/crk'
 import { ease } from '@mikixing/transition'
-import { initCanvas, getRoundCircle, Vector, adjustPosition } from '../util'
+import { getRoundCircle, Vector } from '../util'
+import { layout, stdStage } from '../common'
 
 class Shape extends BaseShape {
   public type?: string = ''
@@ -33,9 +34,6 @@ const data = {
   bordered: true,
 }
 
-let needsUpdate = true
-let id: number
-
 function stdList(list: number[], len: number, val = 0): number[] {
   const ret = Array(len).fill(val)
   if (list?.length) {
@@ -47,14 +45,18 @@ function stdList(list: number[], len: number, val = 0): number[] {
 
 export default function Diagram() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  needsUpdate = true
 
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-    const [width, height] = initCanvas(canvas)
-
     const stage = new Stage(canvas)
+
+    let { width, height, ticker, dispose } = stdStage(stage)
+
+    ticker.on('frame', () => {
+      stage.update()
+    })
+
     const containerGrp = new Group()
     containerGrp.y = 100
     stage.addChild(containerGrp)
@@ -107,15 +109,6 @@ export default function Diagram() {
     title.text && drawTitle()
     drawContent()
 
-    update()
-
-    function update() {
-      if (needsUpdate) {
-        stage.update()
-      }
-      id = requestAnimationFrame(update)
-    }
-
     function drawTitle() {
       const shape = new Shape()
       const g = shape.graphics
@@ -154,7 +147,11 @@ export default function Diagram() {
               item.type !== 'base' &&
               item.type !== 'text'
             ) {
-              ease(item, { alpha: 0.2, duration: 300 })
+              ease(item, {
+                alpha: 0.2,
+                duration: 300,
+                onUpdate: () => (ticker.needsUpdate = true),
+              })
             }
           })
         })
@@ -165,7 +162,11 @@ export default function Diagram() {
         grp.children.forEach(child => {
           const children = (child as Group).children as Shape[]
           children.forEach((item: Shape) => {
-            ease(item, { alpha: 1, duration: 300 })
+            ease(item, {
+              alpha: 1,
+              duration: 300,
+              onUpdate: () => (ticker.needsUpdate = true),
+            })
           })
         })
       })
@@ -340,13 +341,13 @@ export default function Diagram() {
         return endAngle + gap
       }, 0)
     }
+
+    return dispose
   }, [])
 
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(id)
-    }
-  }, [])
-
-  return <canvas ref={canvasRef}></canvas>
+  return (
+    <layout.CanvasBox>
+      <canvas ref={canvasRef}></canvas>
+    </layout.CanvasBox>
+  )
 }

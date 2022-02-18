@@ -1,66 +1,39 @@
-import { Stage, Ticker } from '../../../types'
-import { initCanvas, setAnchor } from '../util'
+import { debounce, initCanvas } from '../util'
+import { Stage, Ticker } from '@mikixing/crk'
+
+export * as layout from './layout'
 
 interface IStdOpt {
-  stage: Stage
-  width?: number
-  height?: number
-  onResize?: (ev: UIEvent) => void
+  onResize?: (ev: UIEvent, width: number, height: number) => void
 }
 // 1. resize
 // 2. canvas dpr处理
 // 4. 平移 缩放
 // 5. 监听帧率
-export function stdStage(opt = {} as IStdOpt) {
-  const { stage, width, height, onResize } = opt
+export function stdStage(stage: Stage, opt = {} as IStdOpt) {
+  const { onResize } = opt
   const canvas = stage.canvas
   const ticker = new Ticker()
 
-  let bb = canvas.getBoundingClientRect()
-
-  initCanvas(canvas, width ?? canvas.offsetWidth, height ?? canvas.offsetHeight)
-
-  // 设置canvas画布平移,缩放
-  setWheelEvent()
-
   let resizeFn: (ev: UIEvent) => void
+
+  let [width, height] = initCanvas(canvas)
+
   window.addEventListener(
     'resize',
-    (resizeFn = ev => {
-      initCanvas(canvas)
-      bb = canvas.getBoundingClientRect()
-      onResize?.(ev)
-    })
+    (resizeFn = debounce(ev => {
+      ;[width, height] = initCanvas(canvas)
+      onResize?.(ev, width, height)
+    }))
   )
 
   return {
     ticker,
+    width,
+    height,
     dispose() {
+      ticker.dispose()
       window.removeEventListener('resize', resizeFn)
     },
-  }
-
-  function setWheelEvent() {
-    canvas.addEventListener('wheel', ev => {
-      if (ev.deltaMode === ev.DOM_DELTA_PIXEL) {
-        if (ev.ctrlKey || ev.metaKey) {
-          // zoom
-          let { x, y } = stage.global2local(
-            ev.clientX - bb.x,
-            ev.clientY - bb.y
-          )
-          setAnchor(stage, x, y)
-
-          const ss = stage.scale * Math.pow(0.98, ev.deltaY)
-          stage.scale = ss
-        } else {
-          stage.x += -ev.deltaX
-          stage.y += -ev.deltaY
-        }
-
-        ticker.needsUpdate = true
-        ev.preventDefault()
-      }
-    })
   }
 }

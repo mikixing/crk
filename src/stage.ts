@@ -22,7 +22,6 @@ enum STATE {
 }
 
 export default class Stage extends Group {
-  public readonly root = true
   public ctx: CanvasRenderingContext2D
   public offCtx = document.createElement('canvas').getContext('2d') // offline ctx
   public width: number
@@ -84,12 +83,10 @@ export default class Stage extends Group {
       const { currentTarget } = ev
       currentTarget.emit(ev.type, ev)
       if (cursor === 'default' && ev.type === 'mouseover') {
-        console.log('---over---')
         cursor = currentTarget.cursor
         this.canvas.style.cursor = cursor
       }
       if (ev.type === 'mouseout') {
-        console.log('---out---')
         cursor = 'default'
         this.canvas.style.cursor = cursor
       }

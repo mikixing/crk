@@ -1,13 +1,29 @@
-import { Element, Graphics, Group, Matrix, Shape } from '@mikixing/crk'
+import { Element, Graphics, Group, Matrix, Shape, Stage } from '@mikixing/crk'
+import Vector from './vector'
+import Bezier from './bezier'
 
+export { default as Vector } from './vector'
+export { default as Bezier, getLUT } from './bezier'
+export { default as getRoundCircle } from './getRoundCircle'
+export { default as loadImage } from './loadImage'
+export { default as dragable } from './dragable'
+
+//适配屏幕分辨率
 export function initCanvas(
   canvas: HTMLCanvasElement,
   width?: number,
   height?: number,
   dpr = window.devicePixelRatio
 ) {
-  width = width || document.documentElement.clientWidth
-  height = height || document.documentElement.clientHeight
+  width =
+    width ??
+    canvas.parentElement?.offsetWidth ??
+    document.documentElement.clientWidth
+  height =
+    height ??
+    canvas.parentElement?.offsetHeight ??
+    document.documentElement.clientHeight
+
   canvas.width = width * dpr
   canvas.height = height * dpr
   canvas.style.width = width + 'px'
@@ -50,121 +66,14 @@ export function setRoundRect(
   g.closePath()
 }
 
-interface IV {
-  x: number
-  y: number
-}
-export class Vector {
-  public x: number
-  public y: number
-
-  static from(v: IV) {
-    return new Vector(v.x, v.y)
-  }
-
-  static ZERO = 1e-8
-
-  static fromArray(v: number[]) {
-    return new Vector(v[0], v[1])
-  }
-
-  constructor(x: number, y: number) {
-    this.x = x ?? 1
-    this.y = y ?? 1
-  }
-
-  get length() {
-    return (this.x ** 2 + this.y ** 2) ** 0.5
-  }
-
-  normalize() {
-    let len = this.length
-    return new Vector(this.x / len, this.y / len)
-  }
-
-  add(v: Vector | IV) {
-    return new Vector(this.x + v.x, this.y + v.y)
-  }
-
-  isParallel(v: Vector | IV) {
-    return Math.abs(this.x / v.x - this.y / v.y) < Vector.ZERO
-  }
-
-  // 反向
-  inverse() {
-    return new Vector(-this.x, -this.y)
-  }
-
-  // 相减
-  substract(v: Vector | IV) {
-    return new Vector(this.x - v.x, this.y - v.y)
-  }
-
-  // 点乘
-  dot(v: Vector | IV) {
-    return this.x * v.x + this.y * v.y
-  }
-
-  // 叉乘
-  cross(v: Vector | IV) {
-    return this.x * v.y - this.y * v.x
-  }
-
-  scale(v: Vector | IV | number) {
-    if (typeof v === 'number') return new Vector(this.x * v, this.y * v)
-    return new Vector(this.x * v.x, this.y * v.y)
-  }
-
-  rotate(rad: number) {
-    const sin = Math.sin(rad)
-    const cos = Math.cos(rad)
-    return new Vector(cos * this.x - sin * this.y, sin * this.x + cos * this.y)
-  }
-
-  getRad(v: Vector) {
-    return getRad(this, v)
-  }
-}
-
-function getRad(va: Vector, vb: Vector) {
-  va = va.normalize()
-  vb = vb.normalize()
-
-  const sin = va.cross(vb)
-  const cos = va.dot(vb)
-
-  let theta = Math.asin(sin) // [-90°, 90°]
-  return cos > 0 ? theta : Math.sign(sin) * Math.PI - theta
-}
-
+// 随机生成min-max范围的值
 export const rand = (min: number, max: number) => {
   return Math.random() * (max - min) + min
 }
 
+// 生成min-max范围的值
 export const clamp = (val: number, min: number, max: number) =>
   Math.min(Math.max(min, val), max)
-
-export function getFileDataURL(file: File) {
-  return new Promise((r, j) => {
-    const reader = new FileReader()
-    reader.onload = (ev: any) => r(ev.target.result)
-    reader.onerror = j
-    reader.readAsDataURL(file)
-  })
-}
-
-export function getFileText(file: File) {
-  return new Promise((r, j) => {
-    const reader = new FileReader()
-    reader.onload = (ev: any) => r(ev.target.result)
-    reader.onerror = j
-    reader.readAsText(file)
-  })
-}
-
-export { default as getRoundCircle } from './getRoundCircle'
-export { default as loadImage } from './loadImage'
-export { default as dragable } from './dragable'
 
 export const setAnchor = (el: Element, x: number, y: number) => {
   const mat = new Matrix()
@@ -184,11 +93,12 @@ export const setAnchor = (el: Element, x: number, y: number) => {
 
 type TBoundingBox = { left: number; right: number; top: number; bottom: number }
 export class BoundingBox {
-  el: Group | Shape
-  left: number
-  right: number
-  top: number
-  bottom: number
+  public el: Group | Shape
+  public left: number
+  public right: number
+  public top: number
+  public bottom: number
+
   constructor(el: Group | Shape) {
     this.el = el
     this.left = Infinity
@@ -198,7 +108,23 @@ export class BoundingBox {
     this.getBoundingBox()
   }
 
-  get boundingBox() {
+  public get x() {
+    return this.left
+  }
+
+  public get y() {
+    return this.top
+  }
+
+  public get width() {
+    return this.right - this.left
+  }
+
+  public get height() {
+    return this.bottom - this.top
+  }
+
+  public get boundingBox() {
     return {
       left: this.left,
       right: this.right,
@@ -207,7 +133,7 @@ export class BoundingBox {
     }
   }
 
-  getBoundingBox() {
+  public getBoundingBox() {
     this.doGetBoundingBox(this.el)
     return this.boundingBox
   }
@@ -218,7 +144,7 @@ export class BoundingBox {
         this.doGetBoundingBox(child)
       })
     } else {
-      const coor1 = el.parent?.local2local(el, el.x, el.y) as {
+      const coor1 = el.parent?.local2local(this.el, el.x, el.y) as {
         x: number
         y: number
       }
@@ -242,7 +168,7 @@ export class BoundingBox {
     }
   }
 
-  addBoundingBox(a: TBoundingBox): TBoundingBox {
+  public addBoundingBox(a: TBoundingBox): TBoundingBox {
     this.left = Math.min(this.left, a.left)
     this.right = Math.max(this.right, a.right)
     this.top = Math.min(this.top, a.top)
@@ -257,8 +183,36 @@ export function getBackgroundData(
   sh: number,
   dw: number,
   dh: number,
-  isContain = true
+  opt = {} as {
+    isContain?: boolean
+    padding?: number[] | number
+    paddingLeft?: number
+    paddingTop?: number
+    paddingRight?: number
+    paddingBottom?: number
+  }
 ) {
+  let {
+    isContain = true,
+    padding,
+    paddingLeft,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+  } = opt
+
+  if (!Array.isArray(padding)) {
+    padding = Array(4).fill(typeof padding === 'number' ? padding : 0)
+  }
+
+  paddingTop = paddingTop ?? padding[0] ?? 0
+  paddingRight = paddingRight ?? padding[1] ?? 0
+  paddingBottom = paddingBottom ?? padding[2] ?? 0
+  paddingLeft = paddingLeft ?? padding[3] ?? 0
+
+  dw = dw - paddingLeft - paddingRight
+  dh = dh - paddingTop - paddingBottom
+
   const sr = sw / sh
   const dr = dw / dh
 
@@ -271,55 +225,9 @@ export function getBackgroundData(
 
   return {
     scale,
-    x: (dw - sw * scale) / 2,
-    y: (dh - sh * scale) / 2,
+    x: (dw - sw * scale) / 2 + paddingLeft,
+    y: (dh - sh * scale) / 2 + paddingTop,
   }
-}
-
-export function adjustPosition(
-  canvas: HTMLCanvasElement,
-  el: Group | Shape,
-  opt = {} as {
-    padding?: number[] | number
-    paddingLeft?: number
-    paddingTop?: number
-    paddingRight?: number
-    paddingBottom?: number
-  },
-  cb?: Function
-) {
-  const boundingBox = new BoundingBox(el).boundingBox
-  // @ts-ignore
-  // window.boundingBox = boundingBox
-  // boxShape.graphics
-  //   .clear()
-  //   .setStrokeStyle({ lineWidth: 1, color: 'red' })
-  //   .moveTo(boundingBox.left, boundingBox.top)
-  //   .lineTo(boundingBox.right, boundingBox.top)
-  //   .lineTo(boundingBox.right, boundingBox.bottom)
-  //   .lineTo(boundingBox.left, boundingBox.bottom)
-  //   .closePath()
-  //   .stroke()
-  // ;(nodeTree as Group).addChild(boxShape)
-
-  let { padding, paddingLeft, paddingTop, paddingRight, paddingBottom } = opt
-
-  if (!Array.isArray(padding)) {
-    padding = Array(4).fill(typeof padding === 'number' ? padding : 0)
-  }
-
-  paddingTop = paddingTop ?? padding[0] ?? 0
-  paddingRight = paddingRight ?? padding[1] ?? 0
-  paddingBottom = paddingBottom ?? padding[2] ?? 0
-  paddingLeft = paddingLeft ?? padding[3] ?? 0
-
-  const sw = boundingBox.right - boundingBox.left // source width
-  const sh = boundingBox.bottom - boundingBox.top // source height
-  const dw = canvas.offsetWidth - paddingLeft - paddingRight // destination width
-  const dh = canvas.offsetHeight - paddingTop - paddingBottom // destination height
-
-  const { scale, x, y } = getBackgroundData(sw, sh, dw, dh)
-  cb?.(x + paddingLeft, y + paddingTop, scale)
 }
 
 export function mix(a: number | number[], b: number | number[], p: number) {
@@ -352,70 +260,79 @@ function _check(a: number | number[], b: number | number[]) {
   }
 }
 
-export const Bezier = (_ => {
-  const lut = [
-    [1],
-    [1, 1],
-    [1, 2, 1],
-    [1, 3, 3, 1],
-    [1, 4, 6, 4, 1],
-    [1, 5, 10, 10, 5, 1],
-    [1, 6, 15, 20, 15, 6, 1],
-    [1, 7, 21, 35, 35, 21, 7, 1],
-    [1, 8, 28, 56, 70, 56, 28, 8, 1],
-    [1, 9, 36, 84, 126, 126, 84, 36, 9, 1],
-    [1, 10, 45, 120, 210, 252, 210, 120, 45, 10, 1],
-  ]
+export function debounce<T extends (...args: any[]) => void>(fn: T, t = 500) {
+  let timer: NodeJS.Timeout
+  return function (...args: Parameters<T>) {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      // @ts-ignore
+      fn.call(this, ...args)
+    }, t)
+  }
+}
 
-  class Bezier {
-    public params: number[] = []
-    constructor(...args: number[]) {
-      args.length && this.setParam(...args)
-    }
+export function setWheel(
+  el: Group,
+  onChange?: (x: number, y: number, scale: number) => void
+) {
+  const { stage } = el
 
-    setParam(...args: number[]) {
-      this.params = args
-    }
-
-    get(t: number) {
-      const { params = [] } = this
-
-      if (!params || !params.length || typeof t !== 'number') {
-        return 0
-      }
-
-      const n = params.length - 1
-      const binomials = lut[n]
-
-      let i = 0,
-        val = 0,
-        ke
-
-      for (; i <= n; i++) {
-        ke = binomials[i] * (1 - t) ** (n - i) * t ** i
-        val += ke * params[i]
-      }
-
-      return val
-    }
+  if (!stage) {
+    throw new Error('please set el as a descendant of a stage')
   }
 
-  return Bezier
-})()
-export function getLUT(list: number[], interval = 0.01) {
-  const segments = Math.ceil(1 / interval)
-  const lut = Array(segments + 1)
-  const be = new Bezier(...list)
+  const { canvas } = stage
 
-  for (let i = 0, t = 0; ; i++) {
-    lut[i] = be.get(t)
+  let wheelFn: (ev: WheelEvent) => void
+  let timer: NodeJS.Timeout
+  let bb: DOMRect | null = null
+  canvas.addEventListener(
+    'wheel',
+    (wheelFn = ev => {
+      ev.preventDefault()
 
-    if (t === 1) {
-      break
-    }
+      let x = 0
+      let y = 0
+      let scale = 1
 
-    t = Math.min(1, t + interval)
+      if (ev.deltaMode === ev.DOM_DELTA_PIXEL) {
+        if (ev.ctrlKey || ev.metaKey) {
+          bb = bb || canvas.getBoundingClientRect()
+
+          clearTimeout(timer)
+          timer = setTimeout(() => (bb = null), 500)
+
+          // zoom
+          let { x, y } = el.global2local(ev.clientX - bb.x, ev.clientY - bb.y)
+          setAnchor(el, x, y)
+
+          el.scale = scale = el.scale * Math.pow(0.98, ev.deltaY)
+        } else {
+          x = -ev.deltaX
+          y = -ev.deltaY
+
+          const pt = el.parent ? el.parent.global2local(x, y) : { x, y }
+
+          el.x += pt.x
+          el.y += pt.y
+        }
+
+        onChange?.(x, y, scale)
+      }
+    })
+  )
+
+  return () => {
+    window.removeEventListener('wheel', wheelFn)
   }
+}
 
-  return lut
+// 读取上传文件
+export function getFileDataURL(file: File) {
+  return new Promise((r, j) => {
+    const reader = new FileReader()
+    reader.onload = (ev: any) => r(ev.target.result)
+    reader.onerror = j
+    reader.readAsDataURL(file)
+  })
 }

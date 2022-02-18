@@ -5,6 +5,11 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-x: none;
+}
+
+canvas {
+  overscroll-behavior-x: none;
 }
 
 code {
@@ -15,21 +20,30 @@ code {
 .nav {
   width: 200px;
   height: 100%;
+  position: fixed;
 }
 
 .nav .ant-menu-item {
   height: 30px !important;
   line-height: 30px !important;
+  /* margin: 0 !important; */
+}
+
+.ant-menu-title-content a {
+  color: #555 !important;
+  font-size: 14px !important;
 }
 
 .content {
-  flex: 1;
+  margin-left: 200px;
+  /* position: relative; */
 }
 
 /*
   禁止双击选中文字
 */
-.noSelect {
+.noSelect,
+.dg {
   -webkit-touch-callout: none;
   /*系统默认菜单被禁用 iOS Safari*/
   -webkit-user-select: none;
@@ -42,10 +56,6 @@ code {
   /*IE10 Internet Explorer/Edge*/
   user-select: none;
   /* Non-prefixed version, currently not supported by any browser */
-}
-
-.ant-menu-title-content a {
-  color: #555 !important;
 }
 
 /* .controller {
@@ -61,3 +71,22 @@ code {
 .row {
   margin: 10px 0;
 } */
+
+.canvas-box {
+  position: absolute;
+  left: 200px;
+  right: 0;
+  height: 100%;
+}
+
+.spin-box {
+  position: absolute !important;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+}
+.ant-spin-dot {
+  top: 50%;
+  transform: translateY(-50%);
+}

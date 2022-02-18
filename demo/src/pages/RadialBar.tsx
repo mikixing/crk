@@ -1,26 +1,20 @@
 import React, { useEffect, useRef } from 'react'
 import { Stage, Shape, Group } from '@mikixing/crk'
-import { linear, easeIn, easeOut, ease, collision } from '@mikixing/transition'
-import { initCanvas, getRoundCircle } from '../util'
+import { ease, easeIn } from '@mikixing/transition'
+import { getRoundCircle, getBackgroundData } from '../util'
+import { layout, stdStage } from '../common'
 
-let needsUpdate = false
-let id: number
 export default function RadialBar() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    needsUpdate = true
     return initStage(canvasRef.current as HTMLCanvasElement)
   }, [])
 
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(id)
-    }
-  }, [])
-
   return (
-    <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }}></canvas>
+    <layout.CanvasBox>
+      <canvas ref={canvasRef}></canvas>
+    </layout.CanvasBox>
   )
 }
 
@@ -36,17 +30,34 @@ function initStage(canvas: HTMLCanvasElement) {
   const maxAngle = 270
 
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-  const [width, height] = initCanvas(canvas)
 
   const stage = new Stage(canvas)
+  const container = new Group()
   const grp = new Group()
-  stage.addChild(grp)
-  grp.x = width / 2
-  grp.y = height / 2
-  // grp.rotation = -90
-
+  grp.x = 200
+  grp.y = 300
   const textGrp = new Group()
-  stage.addChild(textGrp)
+  container.addChild(grp, textGrp)
+  stage.addChild(container)
+
+  let { width, height, ticker, dispose } = stdStage(stage, {
+    onResize: (ev, w, h) => {
+      width = w
+      height = h
+      ticker.needsUpdate = true
+      container.set(getBackgroundData(500, 600, width, height))
+    },
+  })
+
+  ticker.on('frame', () => {
+    stage.update()
+  })
+  const { x: left, y: top, scale } = getBackgroundData(500, 600, width, height)
+  container.set({
+    x: left,
+    y: top,
+    scale,
+  })
 
   const radius = 20
   const gap = 35
@@ -68,8 +79,9 @@ function initStage(canvas: HTMLCanvasElement) {
       }
       const dst = {
         angle: endAngle,
-        duration: (endAngle / 270) * duration,
+        duration: ((endAngle / 270) * duration) / 3,
         onUpdate: (obj: Record<string, number>) => {
+          ticker.needsUpdate = true
           currentAngle = obj.angle
           g.clear()
           getRoundCircle(g, {
@@ -91,7 +103,8 @@ function initStage(canvas: HTMLCanvasElement) {
             .stroke()
         },
       }
-      collision(src, dst)
+      easeIn(src, dst)
+      ticker.needsUpdate = true
     }, 300 * i)
 
     const textShape = new Shape()
@@ -112,24 +125,17 @@ function initStage(canvas: HTMLCanvasElement) {
 
     ctx.restore()
 
-    textShape.x = -100
-
     setTimeout(() => {
       ease(textShape, {
         x: 0,
         alpha: 1,
-        // onUpdate(d) {
-        //   console.log(d, '------')
-        // },
+        onUpdate: () => {
+          ticker.needsUpdate = true
+        },
       })
+      ticker.needsUpdate = true
     }, 100 * i)
   })
 
-  update()
-  function update() {
-    if (needsUpdate) {
-      stage.update()
-    }
-    requestAnimationFrame(update)
-  }
+  return dispose
 }

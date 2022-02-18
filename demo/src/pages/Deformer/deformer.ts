@@ -1,5 +1,6 @@
+import { EventEmitter } from 'events'
 import { Group, Element, Shape, deg2rad, Matrix, rad2deg } from '@mikixing/crk'
-import { Vector } from '../../util'
+import { dragable, Vector } from '../../util'
 
 interface IOption {
   cvw?: number
@@ -11,28 +12,33 @@ interface IOption {
   activeAlpha?: number
 }
 
-interface IRect {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+type TWatchEvent = 'create' | 'update' | 'active' | 'move' | 'dispose'
 
-export default class Deformer {
-  public els: Element[]
+export default class Deformer extends EventEmitter {
+  public el: Element
   public status = 'idle'
+
+  private _disabled = false
+
+  private width: number
+  private height: number
+
   private panel = new Group()
   private toolGrp = new Group()
   private maskGrp = new Group()
   private container: Group
 
-  private cvw: number
-  private cvh: number
-  private radius: number
-  private color: string
-  private fillColor: string
-  private hoverAlpha: number
-  private activeAlpha: number
+  private cvw: number = 10
+  private cvh: number = 10
+  private radius: number = 10
+  private color: string = '#6cf'
+  private fillColor: string = '#ffe'
+  private hoverAlpha: number = 0.25
+  private activeAlpha: number = 0.5
+
+  private hasOpenHover: boolean = false
+
+  private tikerUpdate: Function = () => {}
 
   private cvs = [
     { x: 0, y: 0, i: 4, fx: 1, fy: 1 },
@@ -49,59 +55,167 @@ export default class Deformer {
   private bar = new Shape()
   private pivotShape = new Shape()
 
-  constructor(els = [] as Element[], container: Group, opt = {} as IOption) {
-    this.els = els
-    this.cvw = opt.cvw ?? 10
-    this.cvh = opt.cvh ?? 10
-    this.radius = opt.radius ?? 10
-    this.color = opt.color ?? '#6cf'
-    this.fillColor = opt.fillColor ?? '#ffe'
-    this.hoverAlpha = opt.hoverAlpha ?? 0.25
-    this.activeAlpha = opt.activeAlpha ?? 0.5
+  constructor(
+    el: Element,
+    width: number,
+    height: number,
+    container: Group,
+    opt = {} as IOption
+  ) {
+    super()
+    this.el = el
     this.container = container
+    this.width = width
+    this.height = height
+    // 标准化参数
+    this.set(opt)
+
     this.panel.addChild(this.maskGrp, this.toolGrp)
-    this.container.addChild(this.panel)
-    this.set(els, container, opt)
+    this.addPanel()
+    this.rotateBtn = new Shape()
+    this.bar = new Shape()
+
+    this.hasOpenHover = false
+
+    this.create()
   }
 
-  private assert(els: Element[]) {
-    els.forEach((el, index) => {
-      if (!(el instanceof Element)) {
-        throw new TypeError(`第${index}个元素不是Element实例`)
+  get disabled() {
+    return this._disabled
+  }
+  set disabled(v: boolean) {
+    if (this._disabled !== v) {
+      if (!v) {
+        this.removePanel()
+      } else {
+        this.addPanel()
+        this.updateMask()
+        this.updateTool()
+        this.updateRotateBtn()
       }
-    })
+    }
+    this._disabled = v
   }
 
-  private generateMask(el: Element) {
+  private set(opt = {} as IOption) {
+    this.cvw = opt.cvw ?? this.cvw // control vertex width
+    this.cvh = opt.cvh ?? this.cvh
+    this.radius = opt.radius ?? this.radius
+    this.color = opt.color ?? this.color
+    this.fillColor = opt.fillColor ?? this.fillColor
+    this.hoverAlpha = opt.hoverAlpha ?? this.hoverAlpha
+    this.activeAlpha = opt.activeAlpha ?? this.activeAlpha
+  }
+
+  private addPanel() {
+    this.container.addChild(this.panel)
+  }
+
+  private removePanel() {
+    this.container.removeChild(this.panel)
+  }
+
+  public create() {
+    if (this.disabled) {
+      return console.warn(
+        'this deformer is disabled, you can enable this then try update it when using'
+      )
+    }
+    const el = this.el
+    el.cursor = 'pointer'
+    this.generateMask()
+    this.generateCv()
+    this.generateRotateBtn()
+    // deformer创建完成
+    this.emit('create')
+    this.tikerUpdate && this.tikerUpdate()
+  }
+
+  public update(opt = {} as IOption) {
+    if (this.disabled) {
+      return console.warn(
+        'this deformer is disabled, you can enable this then try update it when using'
+      )
+    }
+    this.set(opt)
+    const el = this.el
+    this.updateMask()
+    this.updateTool()
+    this.updateRotateBtn()
+
+    this.emit('update')
+    this.tikerUpdate && this.tikerUpdate()
+  }
+
+  private generateMask() {
+    const { el } = this
+    this.toggleHover(false)
     this.maskGrp.cursor = 'pointer'
     this.maskGrp.removeAllChildren()
     const mask = new Shape()
     this.maskGrp.addChild(mask)
-    this.updateMask(el)
-    let ox: number, oy: number // target origin x, y
-    let p1: { x: number; y: number }
-    mask
-      .removeAllListeners()
-      .on('pressdown', (ev: any) => {
-        ox = el.x
-        oy = el.y
+    this.updateMask()
+
+    el.on('mouseover', ev => {
+      this.hasOpenHover && this.toggleHover()
+      this.tikerUpdate && this.tikerUpdate()
+    }).on('mouseout', ev => {
+      if (this.status === 'active') return
+      this.toggleHover(false)
+      this.tikerUpdate && this.tikerUpdate()
+    })
+
+    dragable(el, {
+      onPressdown: ev => {
+        this.toggleActive()
+        this.emit('active')
+        this.tikerUpdate && this.tikerUpdate()
+      },
+      onPressmove: (ev, ox, oy, dx, dy) => {
+        const x = (el.x = ox + dx)
+        const y = (el.y = oy + dy)
+        this.updateMask()
+        this.updateTool()
+        this.emit('move')
+        this.tikerUpdate && this.tikerUpdate()
+
+        return [x, y]
+      },
+    })
+
+    mask.removeAllListeners()
+
+    let sx: number // start x, start y
+    let sy: number
+    let p1 = {} as { x: number; y: number }
+
+    dragable(mask, {
+      onPressdown: ev => {
+        sx = el.x
+        sy = el.y
         p1 = (el.parent || el).global2local(ev.x, ev.y)
-        if (this) {
-        }
-      })
-      .on('pressmove', (ev: any) => {
+        this.toggleActive()
+
+        this.tikerUpdate && this.tikerUpdate()
+      },
+      onPressmove: ev => {
         const p2 = (el.parent || el).global2local(ev.x, ev.y) // 鼠标位置在bmGrp中对应的坐标
-        el.x = ox + p2.x - p1.x
-        el.y = oy + p2.y - p1.y
-        this.updateMask(el)
-        this.updateTool(el)
-      })
+        el.x = sx + p2.x - p1.x
+        el.y = sy + p2.y - p1.y
+        this.updateMask()
+        this.updateTool()
+
+        this.emit('move')
+        this.tikerUpdate && this.tikerUpdate()
+
+        return [mask.x, mask.y]
+      },
+    })
   }
 
-  private generateCv(el: Element) {
+  private generateCv() {
     this.toolGrp.removeAllChildren()
-    const { rect } = el
-    const { width, height } = rect as IRect
+    const { width, height, el } = this
 
     const { toolGrp, cvw, cvh } = this
     this.cvShapes = this.cvs.map((p, i) => {
@@ -140,6 +254,8 @@ export default class Deformer {
           const cp = elWorldMat.transformPoint(ev.x, ev.y)
           signX = Math.sign(cp.x - pivot.x)
           signY = Math.sign(cp.y - pivot.y)
+
+          this.tikerUpdate && this.tikerUpdate()
         })
         .on('pressmove', (ev: any) => {
           const cp = elWorldMat.transformPoint(ev.x, ev.y)
@@ -147,8 +263,10 @@ export default class Deformer {
           p.fx && (el.scaleX = (((cp.x - pivot.x) * signX) / width) * sx)
           p.fy && (el.scaleY = (((cp.y - pivot.y) * signY) / height) * sy)
 
-          this.updateMask(el)
-          this.updateTool(el)
+          this.updateMask()
+          this.updateTool()
+
+          this.tikerUpdate && this.tikerUpdate()
         })
 
       switch (i) {
@@ -184,10 +302,9 @@ export default class Deformer {
     })
   }
 
-  private generateRotateBtn(el: Element) {
+  private generateRotateBtn() {
     let { toolGrp, cvs, color, radius, rotateBtn, bar, pivotShape } = this
-    const { rect } = el
-    const { width, height } = rect as IRect
+    const { width, height, el } = this
 
     let pivot = { x: cvs[1].x * width, y: cvs[1].y * height }
     let pt = el.local2local(toolGrp, pivot.x, pivot.y)
@@ -275,6 +392,8 @@ export default class Deformer {
         lv = new Vector(pt.x, pt.y)
           .substract(new Vector(el.x, el.y))
           .normalize()
+
+        this.tikerUpdate && this.tikerUpdate()
       })
       .on('pressmove', (ev: any) => {
         ev.stopPropagation()
@@ -288,14 +407,15 @@ export default class Deformer {
         const angle = theta * rad2deg
         el.rotation += angle
 
-        this.updateMask(el)
-        this.updateTool(el)
+        this.updateMask()
+        this.updateTool()
+
+        this.tikerUpdate && this.tikerUpdate()
       })
   }
 
-  private updateMask(el: Element) {
-    const { rect } = el
-    const { width, height } = rect as IRect
+  private updateMask() {
+    const { width, height, el } = this
     const mask = this.maskGrp.children[0] as Shape
     // 顺时针方向
     const p1 = el.local2local(mask, 0, 0)
@@ -314,9 +434,8 @@ export default class Deformer {
       .fill()
   }
 
-  private updateTool(el: Element) {
-    const { rect } = el
-    const { width, height } = rect as IRect
+  private updateTool() {
+    const { width, height, el } = this
     this.cvShapes.forEach((shape, index) => {
       const x = this.cvs[index].x * width
       const y = this.cvs[index].y * height
@@ -324,13 +443,12 @@ export default class Deformer {
       shape.x = pt.x
       shape.y = pt.y
     })
-    this.updateRotateBtn(el)
+    this.updateRotateBtn()
   }
 
-  private updateRotateBtn(el: Element) {
-    const { radius, toolGrp, rotateBtn, bar, color, pivotShape } = this
-    const { rect } = el
-    const { width, height } = rect as IRect
+  private updateRotateBtn() {
+    const { el, radius, toolGrp, rotateBtn, bar, color, pivotShape } = this
+    const { width, height } = this
     const pivot = { x: this.cvs[1].x * width, y: this.cvs[1].y * height }
 
     let pt = el.local2local(toolGrp, pivot.x, pivot.y)
@@ -420,34 +538,8 @@ export default class Deformer {
     el.regY = y
   }
 
-  public set(els = [] as Element[], container?: Group, opt = {} as IOption) {
-    this.assert(els)
-    this.els = els
-    this.container = container ?? this.container
-    this.cvw = opt.cvw ?? this.cvw ?? 10
-    this.cvh = opt.cvh ?? this.cvh ?? 10
-    this.radius = opt.radius ?? this.radius ?? 10
-    this.color = opt.color ?? this.color ?? '#6cf'
-    this.fillColor = opt.fillColor ?? this.fillColor ?? '#ffe'
-    this.hoverAlpha = opt.hoverAlpha ?? this.hoverAlpha ?? 0.25
-    this.activeAlpha = opt.activeAlpha ?? this.activeAlpha ?? 0.5
-    this.rotateBtn = new Shape()
-    this.bar = new Shape()
-
-    this.update()
-  }
-
-  public update() {
-    if (this.els.length === 1) {
-      const el = this.els[0]
-      el.cursor = 'pointer'
-      this.generateMask(el)
-      this.generateCv(el)
-      this.generateRotateBtn(el)
-      this.toggleHover(false)
-    } else if (this.els.length > 1) {
-      //
-    }
+  public openHover() {
+    this.hasOpenHover = true
   }
 
   public toggleHover(val = true) {
@@ -474,5 +566,33 @@ export default class Deformer {
     } else {
       this.status = 'idle'
     }
+  }
+
+  public dispose() {
+    this.removePanel()
+    this.emit('dispose')
+  }
+
+  // 监听钩子
+  public watchEvent(fn: Function): void
+  public watchEvent(opt: Record<TWatchEvent, Function>): void
+  public watchEvent(...args: any[]) {
+    let item = args[0]
+    if (typeof item === 'function') {
+      this.on('update', item)
+        .on('active', item)
+        .on('move', item)
+        .on('dispose', item)
+    } else {
+      for (let key in item) {
+        const fn = item[key]
+        this.on(key, fn)
+      }
+    }
+  }
+
+  // 注册视图更新函数
+  public bindTickerUpdate(fn: Function) {
+    this.tikerUpdate = fn
   }
 }

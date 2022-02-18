@@ -104,31 +104,31 @@ const data = {
                       children: [
                         {
                           name: 'GESTURE',
-                          children: [
-                            {
-                              name: 'PANTOMIME',
-                            },
-                            {
-                              name: 'DECLAMATION',
-                            },
-                          ],
+                          // children: [
+                          //   {
+                          //     name: 'PANTOMIME',
+                          //   },
+                          //   {
+                          //     name: 'DECLAMATION',
+                          //   },
+                          // ],
                         },
                         {
                           name: 'CHARACTER',
-                          children: [
-                            {
-                              name: 'IDEOGRAMS',
-                            },
-                            {
-                              name: 'HIEROGLYPHICS',
-                            },
-                            {
-                              name: 'HERADRY',
-                            },
-                            {
-                              name: 'BLANSONRY',
-                            },
-                          ],
+                          // children: [
+                          //   {
+                          //     name: 'IDEOGRAMS',
+                          //   },
+                          //   {
+                          //     name: 'HIEROGLYPHICS',
+                          //   },
+                          //   {
+                          //     name: 'HERADRY',
+                          //   },
+                          //   {
+                          //     name: 'BLANSONRY',
+                          //   },
+                          // ],
                         },
                       ],
                     },
@@ -174,82 +174,82 @@ const data = {
         {
           name: 'METHEMAtICS',
           children: [
-            {
-              name: 'MIXED',
-              children: [
-                {
-                  name: 'MECHANICS',
-                  children: [
-                    {
-                      name: 'STATICS',
-                      children: [
-                        {
-                          name: 'HYDROSTATICS',
-                        },
-                      ],
-                    },
-                    {
-                      name: 'DYNAMICS',
-                      children: [
-                        {
-                          name: 'BALLISTICS',
-                        },
-                        {
-                          name: 'HYDRODYNAMICS',
-                          children: [
-                            {
-                              name: 'HYDRAULICS',
-                            },
-                            {
-                              name: 'NAVIGATION',
-                            },
-                            {
-                              name: 'ARCHITECTURE',
-                            },
-                          ],
-                        },
-                      ],
-                    },
-                  ],
-                },
-                {
-                  name: 'GEOMETRIC ASTRONOM',
-                  children: [
-                    {
-                      name: 'COSMOGRAPHY',
-                      children: [
-                        {
-                          name: 'URANOGRAPHY',
-                        },
-                        {
-                          name: 'GEOGRAPHY',
-                        },
-                        {
-                          name: 'HYDROGRAPHY',
-                        },
-                      ],
-                    },
-                    {
-                      name: 'CHRONOLOGY',
-                    },
-                  ],
-                },
-                {
-                  name: 'OPTICS',
-                  children: [
-                    {
-                      name: 'DIOPTRICS',
-                    },
-                    {
-                      name: 'CATOPTRICS',
-                    },
-                  ],
-                },
-                {
-                  name: 'ACOUSTICS',
-                },
-              ],
-            },
+            // {
+            //   name: 'MIXED',
+            //   children: [
+            //     {
+            //       name: 'MECHANICS',
+            //       children: [
+            //         {
+            //           name: 'STATICS',
+            //           children: [
+            //             {
+            //               name: 'HYDROSTATICS',
+            //             },
+            //           ],
+            //         },
+            //         {
+            //           name: 'DYNAMICS',
+            //           children: [
+            //             {
+            //               name: 'BALLISTICS',
+            //             },
+            //             {
+            //               name: 'HYDRODYNAMICS',
+            //               children: [
+            //                 {
+            //                   name: 'HYDRAULICS',
+            //                 },
+            //                 {
+            //                   name: 'NAVIGATION',
+            //                 },
+            //                 {
+            //                   name: 'ARCHITECTURE',
+            //                 },
+            //               ],
+            //             },
+            //           ],
+            //         },
+            //       ],
+            //     },
+            //     {
+            //       name: 'GEOMETRIC ASTRONOM',
+            //       children: [
+            //         {
+            //           name: 'COSMOGRAPHY',
+            //           children: [
+            //             {
+            //               name: 'URANOGRAPHY',
+            //             },
+            //             {
+            //               name: 'GEOGRAPHY',
+            //             },
+            //             {
+            //               name: 'HYDROGRAPHY',
+            //             },
+            //           ],
+            //         },
+            //         {
+            //           name: 'CHRONOLOGY',
+            //         },
+            //       ],
+            //     },
+            //     {
+            //       name: 'OPTICS',
+            //       children: [
+            //         {
+            //           name: 'DIOPTRICS',
+            //         },
+            //         {
+            //           name: 'CATOPTRICS',
+            //         },
+            //       ],
+            //     },
+            //     {
+            //       name: 'ACOUSTICS',
+            //     },
+            //   ],
+            // },
             {
               name: 'PHYSICOMATHEMETICS',
             },
@@ -278,31 +278,31 @@ const data = {
                       children: [
                         {
                           name: 'HYGIENE',
-                          children: [
-                            {
-                              name: 'COSMETICS',
-                            },
-                            {
-                              name: 'ATHLETICS',
-                            },
-                          ],
+                          // children: [
+                          //   {
+                          //     name: 'COSMETICS',
+                          //   },
+                          //   {
+                          //     name: 'ATHLETICS',
+                          //   },
+                          // ],
                         },
                         {
                           name: 'PATHOLOGY SEMIOTICS',
                         },
                         {
                           name: 'TREATMENT',
-                          children: [
-                            {
-                              name: 'DIETE',
-                            },
-                            {
-                              name: 'SURGERY',
-                            },
-                            {
-                              name: 'PHARMACY',
-                            },
-                          ],
+                          // children: [
+                          //   {
+                          //     name: 'DIETE',
+                          //   },
+                          //   {
+                          //     name: 'SURGERY',
+                          //   },
+                          //   {
+                          //     name: 'PHARMACY',
+                          //   },
+                          // ],
                         },
                       ],
                     },

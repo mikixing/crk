@@ -1,27 +1,35 @@
 import { useEffect, useRef } from 'react'
 import { Stage, Group, Shape, CrkSyntheticEvent } from '@mikixing/crk'
-import { dragable, getLUT, initCanvas } from '../util'
+import { dragable, getBackgroundData, getLUT, setWheel } from '../util'
+import { layout, stdStage } from '../common'
 
-let needsUpdate = true
-let id: number
 export default function HighOrderBezier() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    needsUpdate = true
     const canvas = canvasRef.current as HTMLCanvasElement
-    console.log('hahhah')
-    console.log(canvas.offsetWidth, canvas.offsetHeight, '------')
-
-    const [width, height] = initCanvas(
-      canvas,
-      canvas.offsetWidth,
-      canvas.offsetHeight
-    )
 
     const stage = new Stage(canvas)
-    const container = new Group()
-    stage.addChild(container)
+    const grp = new Group()
+    stage.addChild(grp)
+    stage.enableMouseOver()
+
+    const removeWheel = setWheel(stage, () => (ticker.needsUpdate = true))
+
+    let { width, height, ticker, dispose } = stdStage(stage, {
+      onResize: (ev, w, h) => {
+        width = w
+        height = h
+        grp.set(getBackgroundData(900, 700, width, height))
+        ticker.needsUpdate = true
+      },
+    })
+
+    grp.set(getBackgroundData(900, 700, width, height))
+
+    ticker.on('frame', () => {
+      stage.update()
+    })
 
     const points = [
       [575, 521],
@@ -29,18 +37,12 @@ export default function HighOrderBezier() {
       [85, 279],
       [535, 342],
       [699, 433],
-      [10, 202],
+      [650, 100],
       [421, 53],
-      [519, 195],
+      [460, 400],
     ]
 
-    addCurve(container)
-
-    container.x = 50
-    container.y = 0
-
-    stage.enableMouseOver()
-    update()
+    addCurve(grp)
 
     function addCurve(ctn: Group) {
       const line = new Shape()
@@ -78,8 +80,10 @@ export default function HighOrderBezier() {
           onPressdown: (ev: CrkSyntheticEvent) => {
             psx = p[0]
             psy = p[1]
-            sx = ev.x
-            sy = ev.y
+
+            const pt = circle.parent.global2local(ev.x, ev.y)
+            sx = pt.x
+            sy = pt.y
           },
           onPressmove: (
             ev: CrkSyntheticEvent,
@@ -88,20 +92,24 @@ export default function HighOrderBezier() {
             dx: number,
             dy: number
           ) => {
-            needsUpdate = true
+            ticker.needsUpdate = true
 
-            const cx = ev.x - sx
-            const cy = ev.y - sy
+            const pt = circle.parent.global2local(ev.x, ev.y)
+
+            const cx = pt.x - sx
+            const cy = pt.y - sy
 
             let x = (p[0] = psx + cx)
             let y = (p[1] = psy + cy)
 
-            text.graphics.clear().fillText(`(${x}, ${y})`, x + 10, y + 10)
+            text.graphics
+              .clear()
+              .fillText(`(${x | 0}, ${y | 0})`, x + 10, y + 10)
 
             setLine()
             setCurve()
 
-            needsUpdate = true
+            ticker.needsUpdate = true
             return [ox + dx, oy + dy]
           },
         })
@@ -131,7 +139,7 @@ export default function HighOrderBezier() {
 
         const g = curve.graphics
           .clear()
-          .setStrokeStyle({ color: '#99c', lineWidth: 3 })
+          .setStrokeStyle({ color: '#99c', lineWidth: 3, join: 'round' })
           .moveTo(points[0][0], points[0][1])
 
         for (let i = 1; i < lutX.length; i++) {
@@ -141,18 +149,15 @@ export default function HighOrderBezier() {
       }
     }
 
-    function update() {
-      if (needsUpdate) {
-        needsUpdate = false
-        stage.update()
-      }
-      id = requestAnimationFrame(update)
-    }
     return () => {
-      cancelAnimationFrame(id)
+      dispose()
+      removeWheel()
     }
   }, [canvasRef])
+
   return (
-    <canvas ref={canvasRef} style={{ width: '100%', height: '100%' }}></canvas>
+    <layout.CanvasBox>
+      <canvas ref={canvasRef}></canvas>
+    </layout.CanvasBox>
   )
 }

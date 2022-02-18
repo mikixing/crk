@@ -1,20 +1,34 @@
 import { useEffect, useRef } from 'react'
 import { Shape, Group, Stage, CrkSyntheticEvent } from '@mikixing/crk'
-import { initCanvas, mix, dragable } from '../util'
+import { mix, dragable, getBackgroundData, setWheel } from '../util'
+import { layout, stdStage } from '../common'
 
-let needsUpdate = true
-let id: number
 export default function DeCasteljau() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    needsUpdate = true
     const canvas = canvasRef.current as HTMLCanvasElement
-    const [width, height] = initCanvas(
-      canvas,
-      canvas.offsetWidth,
-      canvas.offsetHeight
-    )
+    const stage = new Stage(canvas as HTMLCanvasElement)
+    stage.enableMouseOver()
+
+    let { width, height, ticker, dispose } = stdStage(stage, {
+      onResize: (ev, w, h) => {
+        width = w
+        height = h
+        grp.set(getBackgroundData(800, 500, width, height))
+        ticker.needsUpdate = true
+      },
+    })
+
+    const removeWheel = setWheel(stage, () => (ticker.needsUpdate = true))
+
+    ticker.on('frame', () => {
+      stage.update()
+    })
+
+    const grp = new Group()
+    stage.addChild(grp)
+
     start()
 
     function start() {
@@ -24,15 +38,15 @@ export default function DeCasteljau() {
         [600, 150],
         [500, 320],
       ]
-      const stage = new Stage(canvas as HTMLCanvasElement)
       const line = new Shape()
       const curve = new Shape()
-      const container = new Group()
-      stage.addChild(container)
-      container.addChild(line, curve)
+
+      grp.addChild(line, curve)
 
       setLine()
       setCurve()
+
+      grp.set(getBackgroundData(800, 500, width, height))
 
       points.forEach(p => {
         let [x, y] = p
@@ -42,7 +56,7 @@ export default function DeCasteljau() {
         text.graphics
           .setTextStyle({ font: '10px Verdana' })
           .setFillStyle('#666')
-          .fillText(`(${x}, ${y})`, x + 10, y + 10)
+          .fillText(`(${x | 0}, ${y | 0})`, x + 10, y + 10)
           .stroke()
 
         circle.set({ x, y })
@@ -63,8 +77,10 @@ export default function DeCasteljau() {
           onPressdown: (ev: CrkSyntheticEvent) => {
             psx = p[0]
             psy = p[1]
-            sx = ev.x
-            sy = ev.y
+
+            const pt = grp.global2local(ev.x, ev.y)
+            sx = pt.x
+            sy = pt.y
           },
           onPressmove: (
             ev: CrkSyntheticEvent,
@@ -73,31 +89,33 @@ export default function DeCasteljau() {
             dx: number,
             dy: number
           ) => {
-            needsUpdate = true
+            ticker.needsUpdate = true
 
-            const cx = ev.x - sx
-            const cy = ev.y - sy
+            const pt = grp.global2local(ev.x, ev.y)
+
+            const cx = pt.x - sx
+            const cy = pt.y - sy
 
             let x = (p[0] = psx + cx)
             let y = (p[1] = psy + cy)
 
-            console.log('----->', cx, cy, x, y)
-
-            text.graphics.clear().fillText(`(${x}, ${y})`, x + 10, y + 10)
+            text.graphics
+              .clear()
+              .fillText(`(${x | 0}, ${y | 0})`, x + 10, y + 10)
 
             setLine()
             setCurve()
 
-            needsUpdate = true
+            ticker.needsUpdate = true
             return [ox + dx, oy + dy]
           },
         })
 
-        container.addChild(circle, text)
+        grp.addChild(circle, text)
       })
 
       const track = new Shape()
-      container.addChild(track)
+      grp.addChild(track)
 
       canvas.onmousemove = ev => {
         const { x } = canvas.getBoundingClientRect()
@@ -139,14 +157,11 @@ export default function DeCasteljau() {
           .fill()
           .stroke()
 
-        needsUpdate = true
+        ticker.needsUpdate = true
       }
 
-      container.x = 50
-      container.y = 20
-
-      stage.enableMouseOver()
-      update()
+      // grp.x = 50
+      // grp.y = 20
 
       function setLine() {
         line.graphics
@@ -174,25 +189,17 @@ export default function DeCasteljau() {
           .setStrokeStyle({ color: '#99c', lineWidth: 3 })
           .stroke()
       }
-      function update() {
-        if (needsUpdate) {
-          stage.update()
-          needsUpdate = false
-        }
-        id = requestAnimationFrame(update)
-      }
     }
+
     return () => {
-      cancelAnimationFrame(id)
+      dispose()
+      removeWheel()
     }
   }, [canvasRef])
 
   return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        style={{ width: '100%', height: '100%' }}
-      ></canvas>
-    </div>
+    <layout.CanvasBox>
+      <canvas ref={canvasRef}></canvas>
+    </layout.CanvasBox>
   )
 }

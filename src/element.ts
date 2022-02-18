@@ -65,6 +65,17 @@ export default abstract class Element
 
   protected abstract doUpdate(ctx: CanvasRenderingContext2D): void
 
+  public get root() {
+    let el = this as Element
+    while (el.parent && (el = el.parent));
+    return el
+  }
+
+  public get stage(): Stage {
+    const root = this.root
+    return root instanceof Stage ? root : null
+  }
+
   public get scaleX() {
     return this._scaleX ?? this.scale
   }

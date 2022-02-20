@@ -150,7 +150,10 @@ export default function Diagram() {
               ease(item, {
                 alpha: 0.2,
                 duration: 300,
-                onUpdate: () => (ticker.needsUpdate = true),
+                onUpdate: obj => {
+                  Object.assign(item, obj)
+                  ticker.needsUpdate = true
+                },
               })
             }
           })
@@ -165,7 +168,10 @@ export default function Diagram() {
             ease(item, {
               alpha: 1,
               duration: 300,
-              onUpdate: () => (ticker.needsUpdate = true),
+              onUpdate: obj => {
+                Object.assign(item, obj)
+                ticker.needsUpdate = true
+              },
             })
           })
         })

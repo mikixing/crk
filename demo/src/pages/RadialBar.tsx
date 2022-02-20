@@ -129,7 +129,8 @@ function initStage(canvas: HTMLCanvasElement) {
       ease(textShape, {
         x: 0,
         alpha: 1,
-        onUpdate: () => {
+        onUpdate: obj => {
+          Object.assign(textShape, obj)
           ticker.needsUpdate = true
         },
       })

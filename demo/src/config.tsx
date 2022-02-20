@@ -6,6 +6,8 @@ import Chord from './pages/Chord'
 // import RoundCircle from './pages/RoundCircle'
 import RadialBar from './pages/RadialBar'
 import RadialGrid from './pages/RadialGrid'
+// import TransitionTest from './pages/transition-test'
+import Triangle from './pages/triangle'
 
 export const menuList = [
   {
@@ -42,5 +44,15 @@ export const menuList = [
     text: '雷达图',
     path: '/radial-grid',
     component: <RadialGrid />,
+  },
+  // {
+  //   text: '过渡动画测试',
+  //   path: '/transition-test',
+  //   component: <TransitionTest />,
+  // },
+  {
+    text: '三角形',
+    path: '/triangle',
+    component: <Triangle />,
   },
 ]

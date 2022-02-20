@@ -141,15 +141,6 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
 
   collectResetData(root as Group)
 
-  // layoutAndAnimate({
-  //   layout: root => {
-  //     layoutForCompact(root)
-  //   },
-  //   afterLayout: root => {
-  //     collectResetData(root as Group)
-  //   },
-  // })
-
   function reset() {
     ticker.needsUpdate = true
     Object.keys(dataMap).forEach(id => {
@@ -224,6 +215,9 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
             x: el.x,
             y: el.y,
             scale: el.scale,
+            onUpdate: (obj: Record<string, number>) => {
+              Object.assign(el, obj)
+            },
           },
         }
       }
@@ -255,8 +249,6 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
     //   .setStrokeStyle({ color: '#f70', lineWidth: 2 })
     //   .stroke()
 
-    console.log(sw, sh, dw, dh, '-------', scale, bb)
-
     node.x = x
     node.y = y
     node.scale = scale
@@ -273,6 +265,8 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
     if (typeof layout !== 'function') return
 
     let srcMap = {} as Record<string, { x: number; y: number }>
+    let dstMap = {} as Record<any, any>
+
     walk(root, (item: Element) => {
       let src: Record<string, number>
       srcMap[item.uuid] = src = { x: item.x, y: item.y, scale: item.scale }
@@ -311,7 +305,6 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
         // @ts-ignore
         dst.onUpdate = (obj: Record<string, number>) => {
           ticker.needsUpdate = true
-          // const pts = (dst as Shape).points as { x: number; y: number }[]
           Object.keys(obj).forEach(k => {
             const key = k.slice(0, 1) as 'x' | 'y'
             const index = +k.slice(1)
@@ -332,16 +325,15 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
           scale: item.scale,
           onUpdate: (obj: Record<string, number>) => {
             Object.assign(item, obj)
-            // item.x = obj.x
-            // item.y = obj.y
-            // item.scale = obj.scale
             ticker.needsUpdate = true
           },
         }
       }
-
+      dstMap[item.uuid] = dst
       ease(srcMap[item.uuid], dst)
     })
+
+    console.log(srcMap, dstMap)
   }
 
   stage.delegate('pressdown', 'canDrag', (ev: CrkSyntheticEvent) => {

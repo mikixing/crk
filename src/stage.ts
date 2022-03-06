@@ -24,20 +24,27 @@ enum STATE {
 export default class Stage extends Group {
   public ctx: CanvasRenderingContext2D
   public offCtx = document.createElement('canvas').getContext('2d') // offline ctx
-  public width: number
-  public height: number
-  public domStyle: CSSStyleDeclaration
 
   public mouseMoveOutside = true
+
+  private domStyle: CSSStyleDeclaration
 
   private state: STATE = STATE.IDLE
   private mousemoveDomEvent: MouseEvent = null
   private hasPressEvent = false
 
-  constructor(canvas: HTMLCanvasElement, bindEvent?: boolean) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    opt?: {
+      bindEvent?: boolean
+      mouseMoveOutside?: boolean
+    }
+  ) {
     super()
 
-    this.setCanvas(canvas, bindEvent)
+    const { bindEvent = true, mouseMoveOutside = true } = opt ?? {}
+    this.mouseMoveOutside = mouseMoveOutside
+    this.setCanvas(canvas, opt)
     this.offCtx.canvas.width = 1
     this.offCtx.canvas.height = 1
   }
@@ -46,7 +53,13 @@ export default class Stage extends Group {
     return this.ctx?.canvas
   }
 
-  public setCanvas(canvas: HTMLCanvasElement, bindEvent = true) {
+  public setCanvas(
+    canvas: HTMLCanvasElement,
+    opt?: {
+      bindEvent?: boolean
+      mouseMoveOutside?: boolean
+    }
+  ) {
     if (canvas === this.canvas) return
 
     if (!(canvas instanceof HTMLCanvasElement) || !canvas)
@@ -55,6 +68,7 @@ export default class Stage extends Group {
     this.ctx = canvas.getContext('2d')
     this.domStyle = getComputedStyle(this.canvas)
 
+    const { bindEvent = true } = opt ?? {}
     bindEvent && this.bindEvent()
   }
 
@@ -144,27 +158,31 @@ export default class Stage extends Group {
       let item = tree[i]
       if (item.ignoreEvent) continue
       let res = null
-      const _eventRect = item.getEventRect()
-      if (_eventRect) {
-        const { x, y, width, height } = _eventRect
-        const clickPoint = item.global2local(clickX, clickY)
-        if (
-          x <= clickPoint.x &&
-          x + width >= clickPoint.x &&
-          y <= clickPoint.y &&
-          y + height >= clickPoint.y
-        ) {
-          return item
-        } else {
-          continue
-        }
-      }
+
       if (item instanceof Group) {
         this.offCtx.save()
         item.setTransform(this.offCtx)
         res = this.hit(item.children, clickX, clickY)
         this.offCtx.restore()
       } else if (item instanceof Shape) {
+        const { eventRect } = item
+
+        if (eventRect) {
+          const { x, y, width, height } = eventRect
+          const clickPoint = item.global2local(clickX, clickY)
+
+          if (
+            x <= clickPoint.x &&
+            x + width >= clickPoint.x &&
+            y <= clickPoint.y &&
+            y + height >= clickPoint.y
+          ) {
+            return item
+          } else {
+            continue
+          }
+        }
+
         // 绘制shape
         if (item.alpha === 0) continue
         item.doUpdate(this.offCtx)

@@ -6,15 +6,40 @@ import Graphics, {
   TextStyle,
   ILinearGradient,
   IRadialGradient,
+  IShadow,
 } from './graphics'
 import { ActionTypes, ActionKeyMap, NativeMethodTypes } from './constant'
+
+export interface Rectangle {
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
 export default class Shape extends Element {
   public graphics: Graphics
   public parent: Group | Stage = null
+
+  private _eventRect: Rectangle = null
+
   constructor(g?: Graphics) {
     super()
     this.graphics = g || new Graphics()
+  }
+
+  public get eventRect(): Rectangle | null {
+    return this._eventRect || null
+  }
+
+  public setEventRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ): Rectangle {
+    this._eventRect = { x, y, width, height }
+    return this._eventRect
   }
 
   public doUpdate(ctx: CanvasRenderingContext2D) {
@@ -126,6 +151,16 @@ export default class Shape extends Element {
           })
           ctx.strokeStyle = gradient
 
+          break
+        }
+
+        case ActionTypes.setStrokeStyle: {
+          const { shadowColor, shadowOffsetX, shadowOffsetY, shadowBlur } =
+            args as IShadow
+          shadowColor && (ctx.shadowColor = shadowColor)
+          shadowOffsetX && (ctx.shadowOffsetX = shadowOffsetX)
+          shadowOffsetY && (ctx.shadowOffsetY = shadowOffsetY)
+          shadowBlur && (ctx.shadowBlur = shadowBlur)
           break
         }
 

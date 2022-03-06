@@ -17,13 +17,6 @@ export interface Transform {
   skewY: number
 }
 
-export interface Rectangle {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
 export interface CacheData {
   x: number
   y: number
@@ -45,7 +38,7 @@ export default abstract class Element
   public regX = 0
   public regY = 0
   public scale = 1
-  public rotation = 0
+  public rotation = 0 // 角度
   public skewX = 0
   public skewY = 0
   public alpha = 1
@@ -58,7 +51,6 @@ export default abstract class Element
 
   private _scaleX: number
   private _scaleY: number
-  private _eventRect: Rectangle = null
   private _attrMap = {} as Record<string, boolean>
 
   protected cacheData: CacheData = null
@@ -104,20 +96,6 @@ export default abstract class Element
 
   public set(opt?: Partial<Transform & { alpha: number; visible: boolean }>) {
     opt && Object.assign(this, opt)
-  }
-
-  public setEventRect(
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ): Rectangle {
-    this._eventRect = { x, y, width, height }
-    return this._eventRect
-  }
-
-  public getEventRect(): Rectangle | null | undefined {
-    return this._eventRect
   }
 
   public cache(x: number, y: number, width: number, height: number, dpr = 1) {
@@ -244,6 +222,6 @@ export default abstract class Element
       })
     )
 
-    return () => this.off(type, handler)
+    return () => this.removeListener(type, handler)
   }
 }

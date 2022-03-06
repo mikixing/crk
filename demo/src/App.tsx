@@ -19,11 +19,49 @@ export default function App() {
     <>
       <HashRouter>
         <nav className="nav">
+          <div
+            style={{
+              cursor: 'pointer',
+              margin: '0 24px',
+              textAlign: 'center',
+            }}
+          >
+            <a
+              style={{
+                borderBottom: '1px solid #f0f0f0',
+                padding: '10px 0',
+                display: 'block',
+              }}
+              href="https://github.com/mikixing/crk"
+              rel="noreferrer"
+              target="_blank"
+            >
+              <h1
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: 28,
+                  color: '#34bdff',
+                  lineHeight: 1.5,
+                  marginBottom: 0,
+                }}
+              >
+                crk
+              </h1>
+              <div
+                style={{
+                  fontSize: '12px',
+                  color: '#666',
+                }}
+              >
+                canvas图形绘制工具集
+              </div>
+            </a>
+          </div>
           <Menu
             defaultSelectedKeys={['0']}
             mode="inline"
             theme="light"
-            style={{ height: '100%' }}
+            style={{ height: '100%', borderRight: 0 }}
             className="noSelect"
           >
             {menuList.map(({ text, path }, i) => {

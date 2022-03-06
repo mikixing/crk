@@ -43,6 +43,14 @@ export interface IRadialGradient {
   y1: number
   r1: number
 }
+
+export interface IShadow {
+  shadowColor: string
+  shadowOffsetX?: number
+  shadowOffsetY?: number
+  shadowBlur?: number
+}
+
 export default class Graphics {
   public actions: ActionItem[] = []
 
@@ -99,8 +107,8 @@ export default class Graphics {
     return this.addAction(ActionTypes.arcTo, [x1, y1, x2, y2, radius])
   }
 
-  rect(...args: number[]) {
-    return this.addAction(ActionTypes.rect, args)
+  rect(x: number, y: number, width: number, height: number) {
+    return this.addAction(ActionTypes.rect, [x, y, width, height])
   }
 
   closePath() {
@@ -168,24 +176,7 @@ export default class Graphics {
   fillText(text: string, x = 0, y = 0, maxWidth?: number) {
     return this.addAction(ActionTypes.fillText, [text, x, y, maxWidth])
   }
-
-  beginLinearGradientFill(
-    colors: string[],
-    ratios: number[],
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number
-  ) {
-    return this.addAction(ActionTypes.createLinearGradientFill, [
-      colors,
-      ratios,
-      x0,
-      y0,
-      x1,
-      y1,
-    ])
-  }
+  // 渐变
   createLinearGradientStroke(
     colors: string[],
     ratios: number[],
@@ -203,8 +194,8 @@ export default class Graphics {
       y1,
     ])
   }
-  // 渐变
-  createLinearGradient(
+
+  createLinearGradientFill(
     colors: string[],
     ratios: number[],
     x0: number,
@@ -262,6 +253,11 @@ export default class Graphics {
       y1,
       r1,
     ])
+  }
+
+  // 设置阴影
+  setShadow(opt: IShadow) {
+    return this.addAction(ActionTypes.setShadow, opt)
   }
 
   // 状态保存,重置

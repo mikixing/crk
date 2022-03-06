@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Stage, Group, Shape as BaseShape, deg2rad } from '@mikixing/crk'
 import { ease } from '@mikixing/transition'
-import { getRoundCircle, Vector } from '../util'
+import { getRoundCircle, Vector, getBackgroundData } from '../util'
 import { layout, stdStage } from '../common'
 
 class Shape extends BaseShape {
@@ -51,21 +51,28 @@ export default function Diagram() {
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
     const stage = new Stage(canvas)
 
-    let { width, height, ticker, dispose } = stdStage(stage)
+    let { width, height, ticker, dispose } = stdStage(stage, {
+      onResize: (ev, w, h) => {
+        width = w
+        height = h
+        stage.set(getBackgroundData(800, 800, width, height))
+        ticker.needsUpdate = true
+      },
+    })
+    stage.set(getBackgroundData(800, 800, width, height))
 
     ticker.on('frame', () => {
       stage.update()
     })
 
     const containerGrp = new Group()
-    containerGrp.y = 100
     stage.addChild(containerGrp)
 
     const { title, labels, radius, thickness, gap, style, bordered } = data
 
     // 数据标准化
     const len = labels.length
-    const origin = { x: width / 2, y: height / 2 }
+    const origin = { x: radius + 100, y: radius + 100 }
     const totalGap = len * gap
     const totalAngle = 360 - totalGap
 
@@ -114,7 +121,6 @@ export default function Diagram() {
       const g = shape.graphics
       ctx.save()
       ctx.font = title.font
-      const textSizeObj = ctx?.measureText(title.text)
       g.setTextStyle({ font: title.font })
         .setFillStyle(title.color)
         .fillText(title.text, 0, 0)
@@ -130,7 +136,7 @@ export default function Diagram() {
       const grp = new Group()
       containerGrp.addChild(grp)
       grp.x = origin.x
-      grp.y = 300
+      grp.y = origin.y
 
       let timer: NodeJS.Timeout
 

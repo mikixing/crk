@@ -21,6 +21,7 @@ code {
   width: 200px;
   height: 100%;
   position: fixed;
+  border-right: 1px solid #f0f0f0;
 }
 
 .nav .ant-menu-item {

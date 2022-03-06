@@ -14,9 +14,15 @@ interface IOption {
 
 type TWatchEvent = 'create' | 'update' | 'active' | 'move' | 'dispose'
 
+enum states {
+  active,
+  idle,
+  hover,
+}
+
 export default class Deformer extends EventEmitter {
   public el: Element
-  public status = 'idle'
+  public state = states.idle
 
   private _disabled = false
 
@@ -77,6 +83,9 @@ export default class Deformer extends EventEmitter {
 
     this.hasOpenHover = false
 
+    el.cursor = 'pointer'
+    this.rotateBtn.cursor = 'pointer'
+
     this.create()
   }
 
@@ -121,11 +130,10 @@ export default class Deformer extends EventEmitter {
         'this deformer is disabled, you can enable this then try update it when using'
       )
     }
-    const el = this.el
-    el.cursor = 'pointer'
-    this.generateMask()
-    this.generateCv()
-    this.generateRotateBtn()
+
+    this.setMask()
+    this.setCv()
+    this.setRotateBtn()
     // deformer创建完成
     this.emit('create')
     this.tikerUpdate && this.tikerUpdate()
@@ -147,7 +155,7 @@ export default class Deformer extends EventEmitter {
     this.tikerUpdate && this.tikerUpdate()
   }
 
-  private generateMask() {
+  private setMask() {
     const { el } = this
     this.toggleHover(false)
     this.maskGrp.cursor = 'pointer'
@@ -160,7 +168,8 @@ export default class Deformer extends EventEmitter {
       this.hasOpenHover && this.toggleHover()
       this.tikerUpdate && this.tikerUpdate()
     }).on('mouseout', ev => {
-      if (this.status === 'active') return
+      if (this.state === states.active) return
+
       this.toggleHover(false)
       this.tikerUpdate && this.tikerUpdate()
     })
@@ -213,7 +222,7 @@ export default class Deformer extends EventEmitter {
     })
   }
 
-  private generateCv() {
+  private setCv() {
     this.toolGrp.removeAllChildren()
     const { width, height, el } = this
 
@@ -302,7 +311,7 @@ export default class Deformer extends EventEmitter {
     })
   }
 
-  private generateRotateBtn() {
+  private setRotateBtn() {
     let { toolGrp, cvs, color, radius, rotateBtn, bar, pivotShape } = this
     const { width, height, el } = this
 
@@ -549,9 +558,9 @@ export default class Deformer extends EventEmitter {
     toolGrp.visible = false
     if (val) {
       maskGrp.alpha = hoverAlpha
-      this.status = 'hover'
+      this.state = states.hover
     } else {
-      this.status = 'idle'
+      this.state = states.idle
     }
   }
 
@@ -562,9 +571,9 @@ export default class Deformer extends EventEmitter {
 
     if (val) {
       maskGrp.alpha = activeAlpha
-      this.status = 'active'
+      this.state = states.active
     } else {
-      this.status = 'idle'
+      this.state = states.idle
     }
   }
 

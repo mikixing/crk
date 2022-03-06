@@ -14,7 +14,7 @@ import {
   setRoundRect,
   setWheel,
 } from '../../util'
-import data from './data2'
+import data from './data3'
 import { stdStage } from '../../common'
 
 interface Node {
@@ -482,7 +482,7 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
   }
 
   function initTree(stage: Stage, node: Node, level: number) {
-    const color = `hsl(${((level / 5) * 180) | 0}, 60%, 50%)`
+    const color = `hsl(${((level / 5) * 270) | 0}, 60%, 50%)`
 
     let shape = new Shape()
     let g = shape.graphics

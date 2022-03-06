@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Stage, Shape, Group, deg2rad, Ticker } from '@mikixing/crk'
+import { Stage, Shape, Group, deg2rad } from '@mikixing/crk'
 import { getRoundCircle, Vector, setWheel, getBackgroundData } from '../util'
 import { layout, stdStage } from '../common'
 
@@ -35,13 +35,16 @@ function initStage(canvas: HTMLCanvasElement) {
   const container = new Group()
   stage.addChild(container)
 
+  const sw = 720
+  const sh = 720
+
   let { width, height, ticker, dispose } = stdStage(stage, {
     onResize: (ev, w, h) => {
       width = w
       height = h
       ticker.needsUpdate = true
       container.set(
-        getBackgroundData(720, 700, width, height, {
+        getBackgroundData(sw, sh, width, height, {
           paddingTop: 20,
           paddingBottom: 20,
         })
@@ -49,7 +52,7 @@ function initStage(canvas: HTMLCanvasElement) {
     },
   })
   container.set(
-    getBackgroundData(720, 700, width, height, {
+    getBackgroundData(sw, sh, width, height, {
       paddingTop: 20,
       paddingBottom: 20,
     })
@@ -71,8 +74,8 @@ function initStage(canvas: HTMLCanvasElement) {
     const grp = new Group()
     container.addChild(grp)
 
-    grp.x = 360
-    grp.y = height / 2 - 30
+    grp.x = sw / 2
+    grp.y = sh / 2
 
     const arr = new Array(len + 1).fill(1)
     arr.forEach((item, i) => {
@@ -119,8 +122,8 @@ function initStage(canvas: HTMLCanvasElement) {
     const grp = new Group()
     container.addChild(grp)
 
-    grp.x = 360
-    grp.y = height / 2 - 30
+    grp.x = sw / 2
+    grp.y = sh / 2
     grp.rotation = -90
 
     grp.delegate('mouseover', 'bar', ev => {

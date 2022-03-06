@@ -67,7 +67,7 @@ export default function Triangle() {
       y = 0,
       style = {} as any
     ) {
-      const { fillStyle = '#999', fontSize = 16 } = style
+      const { fillStyle = '#999', fontSize = 12 } = style
       const text = new Shape()
 
       textGroup.addChild(text)
@@ -93,8 +93,6 @@ export default function Triangle() {
           .setFillStyle(fillStyle)
           .arc(p.x, p.y, radius, 0, Math.PI * 2)
           .fill()
-
-        p.text && drawText(p.text, p.x + 20, p.y)
       })
 
       return group
@@ -126,14 +124,14 @@ export default function Triangle() {
       const C = getRad(CA, CB)
 
       textGroup.removeAllChildren()
-      drawText((A * rad2deg) | 0, triangle[0].x, triangle[0].y + 30, {
-        fillStyle: '#6cf',
+      drawText((A * rad2deg) | 0, triangle[0].x - 30, triangle[0].y, {
+        fillStyle: '#666',
       })
-      drawText((B * rad2deg) | 0, triangle[1].x, triangle[1].y + 30, {
-        fillStyle: '#6cf',
+      drawText((B * rad2deg) | 0, triangle[1].x + 20, triangle[1].y + 20, {
+        fillStyle: '#666',
       })
-      drawText((C * rad2deg) | 0, triangle[2].x, triangle[2].y + 30, {
-        fillStyle: '#6cf',
+      drawText((C * rad2deg) | 0, triangle[2].x + 20, triangle[2].y + 20, {
+        fillStyle: '#666',
       })
 
       // 靠近AB线段的1/3平分线交点

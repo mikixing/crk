@@ -21,6 +21,7 @@ export enum ActionTypes {
   createLinearGradientStroke,
   createRadialGradientFill,
   createRadialGradientStroke,
+  setShadow,
   save,
   restore,
 }
@@ -36,6 +37,7 @@ export type NativeMethodTypes = Exclude<
   | 'createLinearGradientStroke'
   | 'createRadialGradientFill'
   | 'createRadialGradientStroke'
+  | 'setShadow'
 >
 
 export const ActionKeyMap = Object.keys(ActionTypes).reduce(

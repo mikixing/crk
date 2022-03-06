@@ -3,12 +3,16 @@ import Deformer from './deformer'
 import {
   Stage,
   Group as RawGroup,
-  Bitmap as RawBitmap,
+  Bitmap,
   Shape as RawShape,
   Ticker,
-  Bitmap,
 } from '@mikixing/crk'
-import { loadImage, getFileDataURL, setWheel } from '../../util'
+import {
+  loadImage,
+  getFileDataURL,
+  setWheel,
+  getBackgroundData,
+} from '../../util'
 import { message } from 'antd'
 import { stdStage, layout } from '../../common'
 
@@ -28,47 +32,39 @@ export default function DeformerComponent() {
     const canvas = canvasRef.current as HTMLCanvasElement
     canvas.getContext('2d') as CanvasRenderingContext2D
 
-    let bmGrp = new Group()
-    let deformerGrp = new Group()
+    const deformerList = [] as Deformer[]
 
     const stage = new Stage(canvas)
     stage.enableMouseOver()
-    stage.addChild(bmGrp, deformerGrp)
-
-    const deformerList = [] as Deformer[]
-
-    const removeWheel = setWheel(bmGrp, () => {
-      deformerList.forEach(d => d.create())
-      ticker.needsUpdate = true
-    })
 
     let { ticker, dispose, width, height } = stdStage(stage, {
       onResize: (ev, w, h) => {
         width = w
         height = h
-        bmShape.graphics
-          .clear()
-          .rect(0, 0, width, height)
-          .setFillStyle('#aaa')
-          .fill()
         ticker.needsUpdate = true
       },
     })
 
-    // 灰色背景层
-    const bmShape = new Shape()
-    bmShape.on('pressdown', ev => {
+    let viewGrp = new Group()
+    let bmGrp = new Group()
+    let deformerGrp = new Group()
+    let bgShape = new Shape()
+
+    viewGrp.addChild(bmGrp, deformerGrp)
+    stage.addChild(bgShape, viewGrp)
+
+    const removeWheel = setWheel(bmGrp, () => {
+      deformerList.forEach(d => d.update())
       ticker.needsUpdate = true
-      deformerList.forEach(deformer => {
-        deformer.toggleActive(false)
-      })
     })
-    bmGrp.addChild(bmShape)
-    bmShape.graphics
-      .clear()
-      .rect(0, 0, width, height)
-      .setFillStyle('#aaa')
-      .fill()
+
+    bgShape.setEventRect(0, 0, width, height)
+    bmGrp.set(getBackgroundData(800, 600, width, height, { padding: 100 }))
+
+    bgShape.on('pressdown', () => {
+      deformerList.forEach(df => df.toggleActive(false))
+      ticker.needsUpdate = true
+    })
 
     // 创建变形器,填充页面
     init(canvas, width, height, ticker)
@@ -122,6 +118,10 @@ export default function DeformerComponent() {
       deformer.openHover()
       deformerList.push(deformer)
 
+      deformer.on('active', () => {
+        deformerList.forEach(d => d !== deformer && d.toggleActive(false))
+      })
+
       return deformer
     }
 
@@ -132,12 +132,26 @@ export default function DeformerComponent() {
       ticker: Ticker
     ) {
       const images = [
-        'http://localhost:3000/images/f.jpeg',
-        'http://localhost:3000/images/fb.png',
+        '/images/2.png',
+        '/images/1.png',
+        '/images/5.png',
+        '/images/4.png',
+        '/images/3.png',
       ]
+
+      const tf = [
+        { x: 410.756, y: 262.673, scale: 0.390244 },
+        { x: 1, y: 93.6792, scale: 0.664276 },
+        { x: 181.524, y: 29.2517, scale: 0.518989 },
+        { x: 235.858, y: 422.153, scale: 0.311792 },
+        { x: 322.691, y: 121.848, scale: 0.222414 },
+      ]
+
       const arr = await loadImage(images)
       arr.forEach((img: HTMLImageElement, i) => {
         const bmImg = new Bitmap(img)
+
+        bmImg.set(tf[i])
 
         const deformer = addToDeformer(
           bmImg,
@@ -150,17 +164,17 @@ export default function DeformerComponent() {
 
       ticker.needsUpdate = true
 
-      {
-        const grp = new Group()
-        const tmp = new Shape()
-        tmp.graphics.rect(0, 0, 100, 100).setFillStyle('#f70').fill()
-        const tmp2 = new Shape()
-        tmp2.graphics.rect(200, 100, 100, 100).setFillStyle('#6cf').fill()
-        bmGrp.addChild(grp)
-        grp.addChild(tmp, tmp2)
-        const deformer = addToDeformer(grp, 300, 300, canvas)
-        deformer.bindTickerUpdate(() => (ticker.needsUpdate = true))
-      }
+      // {
+      //   const grp = new Group()
+      //   const tmp = new Shape()
+      //   tmp.graphics.rect(0, 0, 100, 100).setFillStyle('#f70').fill()
+      //   const tmp2 = new Shape()
+      //   tmp2.graphics.rect(200, 100, 100, 100).setFillStyle('#6cf').fill()
+      //   bmGrp.addChild(grp)
+      //   grp.addChild(tmp, tmp2)
+      //   const deformer = addToDeformer(grp, 300, 300, canvas)
+      //   deformer.bindTickerUpdate(() => (ticker.needsUpdate = true))
+      // }
 
       canvas.addEventListener('drop', async (ev: any) => {
         const { dataTransfer: dt } = ev

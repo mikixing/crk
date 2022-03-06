@@ -1,6 +1,6 @@
 {
   "name": "@mikixing/crk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "canvas rendering kit",
   "main": "dist/crk.umd.js",
   "module": "dist/crk.esm.js",
@@ -58,6 +58,7 @@
     "rollup-plugin-sourcemaps": "^0.6.2",
     "rollup-plugin-typescript2": "^0.31.1",
     "rollup-plugin-uglify": "^6.0.4",
+    "standard-version": "^9.3.2",
     "ts-jest": "^26.4.1",
     "tslib": "^2.0.0",
     "typescript": "^4.0.3",

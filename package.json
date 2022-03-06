@@ -1,6 +1,6 @@
 {
   "name": "@mikixing/crk",
-  "version": "0.0.2-test.3",
+  "version": "0.1.0",
   "description": "canvas rendering kit",
   "main": "dist/crk.umd.js",
   "module": "dist/crk.esm.js",

@@ -1,7 +1,5 @@
 # CRK
 
----
-
 ​**crk** (canvas rendering kit, canvas 渲染工具集) 是基于原生 canvas api 的超轻量绘制引擎, 包含完整 **图形类**, **事件系统**, **矩阵系统**, 可轻松实现 canvas 中的各种图形绘制
 
 <p align="center">
@@ -57,7 +55,7 @@ shape.graphics
 stage.update()
 ```
 
-#### 对比 easeljs
+#### 对比 [easeljs](https://github.com/CreateJS/EaselJS)
 
 `crk` 在部分接口定义上, 借鉴了 `easeljs`, 但内部实现原理完全不同, 主要包含以下几点:
 

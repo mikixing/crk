@@ -2,7 +2,10 @@ import { EventEmitter } from 'events'
 import Matrix, { deg2rad } from './lib/Matrix'
 import { SyntheticEvent } from './lib/SyntheticEvent'
 import { TCursor } from './constant/index'
-import { Shape, Stage } from '.'
+import { Stage } from '.'
+import Graphics from './graphics'
+import { getMatrix } from './lib'
+import Mask from './Mask'
 
 export interface Transform {
   x: number
@@ -43,11 +46,13 @@ export default abstract class Element
   public skewY = 0
   public alpha = 1
   public visible = true
-  public transformMatrix: any
+  public transformMatrix?: Matrix
   public parent: Element | null
   public ignoreEvent = false
   public rect?: { x: number; y: number; width: number; height: number }
   public cursor: TCursor | string = 'default'
+
+  public mask?: Mask
 
   private _scaleX: number
   private _scaleY: number
@@ -92,10 +97,12 @@ export default abstract class Element
     ctx.globalAlpha *= this.alpha
     const { a, b, c, d, e, f } = this.getMatrix()
     ctx.transform(a, b, c, d, e, f)
+    return this
   }
 
   public set(opt?: Partial<Transform & { alpha: number; visible: boolean }>) {
     opt && Object.assign(this, opt)
+    return this
   }
 
   public cache(x: number, y: number, width: number, height: number, dpr = 1) {
@@ -111,6 +118,7 @@ export default abstract class Element
       canvas,
     }
     this.updateCache()
+    return this
   }
 
   public updateCache() {
@@ -134,28 +142,7 @@ export default abstract class Element
   }
 
   public getMatrix() {
-    const {
-      x = 0,
-      y = 0,
-      rotation = 0,
-      transformMatrix,
-      scaleX,
-      scaleY,
-      regX = 0,
-      regY = 0,
-      skewX = 0,
-      skewY = 0,
-    } = this
-
-    return (
-      transformMatrix ||
-      new Matrix()
-        .translate(x, y)
-        .skew(skewX * deg2rad, skewY * deg2rad)
-        .rotate(rotation * deg2rad)
-        .scale(scaleX, scaleY)
-        .translate(-regX, -regY)
-    )
+    return getMatrix(this)
   }
 
   public getWorldMatrix() {
@@ -188,6 +175,8 @@ export default abstract class Element
     names.forEach(name => {
       this._attrMap[name] = true
     })
+
+    return this
   }
 
   public removeAttr(...names: string[]) {

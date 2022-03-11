@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { Spin } from 'antd'
 import Deformer from './deformer'
 import {
   Stage,
@@ -13,7 +14,6 @@ import {
   setWheel,
   getBackgroundData,
 } from '../../util'
-import { message } from 'antd'
 import { stdStage, layout } from '../../common'
 
 class Shape extends RawShape {
@@ -26,7 +26,7 @@ class Group extends RawGroup {
 
 export default function DeformerComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [props, setProps] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
@@ -74,28 +74,6 @@ export default function DeformerComponent() {
       stage.update()
     })
 
-    setProps({
-      name: 'file',
-      action: 'https://www.mocky.io/v2/5cc8019d300000980a055e76',
-      headers: {
-        authorization: 'authorization-text',
-      },
-      showUploadList: false,
-      progress: { strokeWidth: 2, showInfo: true },
-      onChange(info: any) {
-        if (info.file.status === 'done' || info.file.status === 'error') {
-          const file = info?.fileList?.[0].originFileObj as File
-          uploadToDeformer(file, canvasRef.current as HTMLCanvasElement).then(
-            deformer =>
-              ((deformer as Deformer).bindTickerUpdate = () => {
-                ticker.needsUpdate = true
-              })
-          )
-          message.success(`${info.file.name} 上传成功`)
-        }
-      },
-    })
-
     return () => {
       dispose()
       removeWheel()
@@ -137,7 +115,7 @@ export default function DeformerComponent() {
         '/images/5.png',
         '/images/4.png',
         '/images/3.png',
-      ]
+      ].map(p => `${process.env.PUBLIC_URL ?? ''}${p}`)
 
       const tf = [
         { x: 410.756, y: 262.673, scale: 0.390244 },
@@ -148,6 +126,8 @@ export default function DeformerComponent() {
       ]
 
       const arr = await loadImage(images)
+      setLoading(false)
+
       arr.forEach((img: HTMLImageElement, i) => {
         const bmImg = new Bitmap(img)
 
@@ -163,18 +143,6 @@ export default function DeformerComponent() {
       })
 
       ticker.needsUpdate = true
-
-      // {
-      //   const grp = new Group()
-      //   const tmp = new Shape()
-      //   tmp.graphics.rect(0, 0, 100, 100).setFillStyle('#f70').fill()
-      //   const tmp2 = new Shape()
-      //   tmp2.graphics.rect(200, 100, 100, 100).setFillStyle('#6cf').fill()
-      //   bmGrp.addChild(grp)
-      //   grp.addChild(tmp, tmp2)
-      //   const deformer = addToDeformer(grp, 300, 300, canvas)
-      //   deformer.bindTickerUpdate(() => (ticker.needsUpdate = true))
-      // }
 
       canvas.addEventListener('drop', async (ev: any) => {
         const { dataTransfer: dt } = ev
@@ -224,10 +192,10 @@ export default function DeformerComponent() {
 
   return (
     <layout.CanvasBox>
+      {loading && (
+        <Spin style={{ position: 'absolute', width: '100%', height: '100%' }} />
+      )}
       <canvas ref={canvasRef}></canvas>
-      {/* <Upload {...props} style={{ height: '60px' }}>
-          <Button icon={<UploadOutlined />}>上传图片</Button>
-        </Upload> */}
     </layout.CanvasBox>
   )
 }

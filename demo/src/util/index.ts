@@ -1,6 +1,4 @@
-import { Element, Graphics, Group, Matrix, Shape, Stage } from '@mikixing/crk'
-import Vector from './vector'
-import Bezier from './bezier'
+import { Element, Graphics, Group, Matrix, Shape } from '@mikixing/crk'
 
 export { default as Vector } from './vector'
 export { default as Bezier, getLUT } from './bezier'
@@ -177,7 +175,7 @@ export class BoundingBox {
   }
 }
 
-// crk求元素containe,cover的x, y, scale
+// crk求元素container,cover的x, y, scale
 export function getBackgroundData(
   sw: number,
   sh: number,
@@ -297,6 +295,8 @@ export function setWheel(
 
       if (ev.deltaMode === ev.DOM_DELTA_PIXEL) {
         if (ev.ctrlKey || ev.metaKey) {
+          // if (n++ % 5 !== 0) return
+
           bb = bb || canvas.getBoundingClientRect()
 
           clearTimeout(timer)
@@ -335,4 +335,21 @@ export function getFileDataURL(file: File) {
     reader.onerror = j
     reader.readAsDataURL(file)
   })
+}
+
+// 生成颜色
+export function generateHslColors(
+  saturation: number,
+  lightness: number,
+  amount: number
+) {
+  let colors = []
+  let huedelta = Math.trunc(360 / amount)
+
+  for (let i = 0; i < amount; i++) {
+    let hue = i * huedelta
+    colors.push(`hsl(${hue},${saturation}%,${lightness}%)`)
+  }
+
+  return colors
 }

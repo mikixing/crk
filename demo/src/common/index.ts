@@ -8,8 +8,7 @@ interface IStdOpt {
 }
 // 1. resize
 // 2. canvas dpr处理
-// 4. 平移 缩放
-// 5. 监听帧率
+// 3. 监听帧率
 export function stdStage(stage: Stage, opt = {} as IStdOpt) {
   const { onResize } = opt
   const canvas = stage.canvas

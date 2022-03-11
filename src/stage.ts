@@ -199,7 +199,7 @@ export default class Stage extends Group {
     }
   }
 
-  private getMouseCoordinateOnCanvas(ev: MouseEvent) {
+  public getMouseCoordinateOnCanvas(ev: MouseEvent) {
     // 元素到视口左上角坐标
     const { top, left } = this.canvas.getBoundingClientRect()
     const x = ev.clientX - left - parseInt(this.domStyle.paddingLeft)
@@ -208,7 +208,7 @@ export default class Stage extends Group {
     return { x, y }
   }
 
-  public enableMouseOver(second = 10) {
+  public enableMouseOver(millisecond = 10) {
     let timer: NodeJS.Timeout
     let hoverTarget: Shape | Group = null
     this.canvas.addEventListener('mouseover', (ev: MouseEvent) => {
@@ -264,10 +264,10 @@ export default class Stage extends Group {
           }
         }
         hoverTarget = target
-      }, second)
+      }, millisecond)
     })
 
-    if (second === 0) {
+    if (millisecond === 0) {
       clearInterval(timer)
       hoverTarget = null
     }

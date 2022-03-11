@@ -92,9 +92,19 @@ export default class Group extends Element {
   }
 
   public doUpdate(ctx: CanvasRenderingContext2D) {
-    if (this.alpha === 0 || !this.visible) return
+    const { alpha, visible, mask } = this
+
+    if (alpha === 0 || !visible) return
 
     ctx.save()
+    if (mask) {
+      const mat = mask.setTransform(ctx)
+      mask.use(ctx)
+      ctx.clip()
+
+      const { a, b, c, d, e, f } = mat.invert()
+      ctx.transform(a, b, c, d, e, f) // reset transform to the last state
+    }
     this.setTransform(ctx)
     this.children.forEach(child => {
       child.doUpdate(ctx)

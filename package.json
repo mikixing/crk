@@ -41,7 +41,7 @@
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^8.1.0",
     "@rollup/plugin-typescript": "^5.0.1",
-    "@types/jest": "^25.2.1",
+    "@types/jest": "^27.4.1",
     "@types/node": "12",
     "@typescript-eslint/eslint-plugin": "3",
     "@typescript-eslint/parser": "^4.4.0",
@@ -73,5 +73,6 @@
     "extends": [
       "@commitlint/config-conventional"
     ]
-  }
+  },
+  "dependencies": {}
 }

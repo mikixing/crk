@@ -49,6 +49,37 @@ const Bezier = (_ => {
   return Bezier
 })()
 
+// 贝塞尔曲线斜率方程
+export function dfdt(
+  p0: number,
+  p1: number,
+  p2: number,
+  p3: number,
+  t: number
+) {
+  const a = (-p0 + p1 * 3 - p2 * 3 + p3) * 3
+  const b = (p0 - p1 * 2 + p2) * 6
+  const c = (p1 - p0) * 3
+
+  return a * t ** 2 + b * t + c
+}
+
+// 求斜率为0时,t的值
+// 如果a为0,那么斜率公式就变成一元一次方程,具有单调性,端点即为最大或最小值
+export function getZeroTangent(p0: number, p1: number, p2: number, p3: number) {
+  const a = (-p0 + p1 * 3 - p2 * 3 + p3) * 3
+  const b = (p0 - p1 * 2 + p2) * 6
+  const c = (p1 - p0) * 3
+
+  const tmp = b ** 2 - 4 * a * c
+  if (tmp < 0 || a === 0) return [0, 0]
+
+  const t1 = (-b + Math.sqrt(tmp)) / (2 * a)
+  const t2 = (-b - Math.sqrt(tmp)) / (2 * a)
+
+  return [t1, t2]
+}
+
 // 贝塞尔曲线分段
 export function getLUT(list: number[], interval = 0.01) {
   const segments = Math.ceil(1 / interval)

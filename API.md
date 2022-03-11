@@ -39,6 +39,7 @@
   - `root: Stage | null` , 根节点
   - `stage: Stage | null` , stage 节点
   - `attrMap: Record<string, boolean>` , 用于业务开发存放特殊标记属性
+  - `mask: Mask`, 实现对画布剪切, 使得可见区域为 `mask` 区域
   - `set(opt?: Partial<Transform & { alpha: number; visible: boolean }>)` - 设置旋转, 位移, 缩放, 倾斜, 透明度, 显示隐藏与否等
   - `setEventRect(x: number, y: number, width: number, height: number)` - 设置元素接受事件面积
   - `cache(x: number, y: number, width: number, height: number, dpr = 1)` - 缓存元素

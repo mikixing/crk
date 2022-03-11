@@ -2,13 +2,24 @@
 
 ​**crk** (canvas rendering kit, canvas 渲染工具集) 是基于原生 canvas api 的超轻量绘制引擎, 包含完整 **图形类**, **事件系统**, **矩阵系统**, 可轻松实现 canvas 中的各种图形绘制
 
+[demo](https://mikixing.github.io/demo/crk)
+
 <p align="center">
-  <img width="400" style="border: 1px solid #ccc;" alt="tree" src="asset/tree.gif">&emsp;
-  <img width="400" style="border: 1px solid #ccc;" alt="deformer" src="asset/deformer.gif">
+  <a target="_blank" href="https://mikixing.github.io/demo/crk/#/tree">
+    <img width="400" style="border: 1px solid #ccc;" alt="tree" src="asset/tree.gif">
+  </a>
+  &emsp;
+  <a target="_blank" href="https://mikixing.github.io/demo/crk/#/deformer">
+    <img width="400" style="border: 1px solid #ccc;" alt="deformer" src="asset/deformer.gif">
+  </a>
 </p>
 <p align="center">
-  <img width="400" style="border: 1px solid #ccc;" alt="chord" src="asset/chord.jpg">&emsp;
+   <a target="_blank" href="https://mikixing.github.io/demo/crk/#/chord">
+  <img width="400" style="border: 1px solid #ccc;" alt="chord" src="asset/chord.jpg">
+  </a>&emsp;
+   <a target="_blank" href="https://mikixing.github.io/demo/crk/#/radial-grid">
   <img width="400" style="border: 1px solid #ccc;" alt="radial" src="asset/radial.jpg">
+  </a>
 </p>
 
 #### 安装

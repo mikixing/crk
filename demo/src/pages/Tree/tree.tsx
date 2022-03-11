@@ -14,7 +14,7 @@ import {
   setRoundRect,
   setWheel,
 } from '../../util'
-import data from './data3'
+import data from './data2'
 import { stdStage } from '../../common'
 
 interface Node {
@@ -46,7 +46,7 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
     number,
     {
       src: Record<string, number> | Element
-      dst: Record<string, number | Function>
+      dst: Record<string, number | Function | boolean>
     }
   >)
   let canvas: HTMLCanvasElement
@@ -61,7 +61,6 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
     reset,
     compact: true,
     resort() {
-      ticker.needsUpdate = true
       layoutAndAnimate({
         layout: root => {
           resort(root)
@@ -81,7 +80,6 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
     .add(d, 'compact')
     .name('紧凑型')
     .onChange(v => {
-      ticker.needsUpdate = true
       layoutAndAnimate({
         layout: root => {
           if (v) {
@@ -155,13 +153,14 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
       regX: 0,
       regY: 0,
       onUpdate: () => (ticker.needsUpdate = true),
+      immediate: true,
     })
   }
 
   function collectResetData(root: Group) {
     walk(root, el => {
       if ((el as Shape)?.type === 'line') {
-        const dst: Record<string, number | Function> = {}
+        const dst: Record<string, number | Function | boolean> = {}
         const src: Record<string, number> = {}
         const { points = [] } = el as Shape
         points.forEach((p, i) => {
@@ -188,6 +187,7 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
           })
         })
 
+        dst.immediate = true
         dst.onUpdate = (obj: Record<string, number>) => {
           ticker.needsUpdate = true
           const pts = (el as Shape).points as { x: number; y: number }[]
@@ -318,6 +318,7 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
           })
           drawLine(item as Shape)
         }
+        dst.immediate = true
       } else {
         dst = {
           x: item.x,
@@ -327,6 +328,7 @@ export default function setTree(canvasDom: HTMLCanvasElement) {
             Object.assign(item, obj)
             ticker.needsUpdate = true
           },
+          immediate: true,
         }
       }
       dstMap[item.uuid] = dst
